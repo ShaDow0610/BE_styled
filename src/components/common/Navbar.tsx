@@ -9,8 +9,9 @@ import {
   faTimes,
   faBox,
   faCubes,
-  faShoppingCart,
   faCog,
+  faShirt,
+  faTruck,
 } from "@fortawesome/free-solid-svg-icons";
 
 export const Navbar = () => {
@@ -39,7 +40,8 @@ export const Navbar = () => {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: faCubes },
     { href: "/products", label: "Produits", icon: faBox },
-    { href: "/stock", label: "Stock", icon: faShoppingCart },
+    { href: "/looks", label: "Looks", icon: faShirt },
+    { href: "/orders", label: "Commandes", icon: faTruck },
     { href: "/admin", label: "Admin", icon: faCog },
   ];
 
@@ -47,7 +49,7 @@ export const Navbar = () => {
     <nav ref={navRef} className="bg-ink text-ivory shadow-lg">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         <Link
-          href="/"
+          href="/dashboard"
           className="font-serif text-2xl tracking-wide text-ivory">
           BE STYLED
         </Link>

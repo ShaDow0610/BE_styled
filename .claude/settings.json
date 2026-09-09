@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node full-flow.js)",
+      "Bash(node -e ' *)",
+      "PowerShell(npm run build 2>&1)",
+      "Bash(timeout 20 bash -c 'until curl -sf http://localhost:3000 >/dev/null; do sleep 1; done')",
+      "Bash(node phase2-flow.js)",
+      "Bash(node verify-look-and-users.js)",
+      "Bash(node verify-fix-and-dnd.js)",
+      "PowerShell($p = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess; if \\($p\\) { Stop-Process -Id $p -Force; \"stopped $p\" } else { \"nothing listening\" })",
+      "PowerShell(npm run dev)",
+      "Bash(node verify-boutique.js)",
+      "Bash(node verify-root-redirect.js)"
+    ]
+  }
+}

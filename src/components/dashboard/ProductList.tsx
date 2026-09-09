@@ -1,42 +1,44 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTrash, faPencil, faEye } from "@fortawesome/free-solid-svg-icons";
 
 gsap.registerPlugin(ScrollTrigger);
 
-interface Product {
+export interface ProductListItem {
   _id: string;
-  name: string;
-  category: string;
-  price: number;
-  sku: string;
-  images?: string[];
+  nom: string;
+  reference: string;
+  categorie: string;
+  origine: "import_chine" | "local";
+  statut: string;
+  stock_total?: number;
+  prix_actuel?: number | null;
 }
 
 interface ProductListProps {
-  products: Product[];
-  onEdit?: (product: Product) => void;
-  onDelete?: (id: string) => void;
-  onView?: (product: Product) => void;
+  products: ProductListItem[];
 }
 
-export const ProductList: React.FC<ProductListProps> = ({
-  products,
-  onEdit,
-  onDelete,
-  onView,
-}) => {
+const STATUT_LABELS: Record<string, string> = {
+  brouillon: "Brouillon",
+  en_commande: "En commande",
+  en_transit: "En transit",
+  en_confection: "En confection",
+  disponible: "Disponible",
+  rupture: "Rupture",
+  archive: "Archivé",
+};
+
+export const ProductList: React.FC<ProductListProps> = ({ products }) => {
   const listRef = useRef<HTMLDivElement>(null);
-  const itemsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const itemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
 
   useEffect(() => {
     if (!listRef.current) return;
 
-    // Animer chaque item avec ScrollTrigger
     itemsRef.current.forEach((item, index) => {
       if (item) {
         gsap.fromTo(
@@ -65,56 +67,33 @@ export const ProductList: React.FC<ProductListProps> = ({
   return (
     <div ref={listRef} className="space-y-4">
       {products.map((product, index) => (
-        <div
+        <Link
           key={product._id}
+          href={`/products/${product._id}`}
           ref={(el) => {
             itemsRef.current[index] = el;
           }}
-          className="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow">
+          className="block bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-ink">
-                {product.name}
-              </h3>
-              <div className="flex gap-4 mt-2 text-sm text-ink-soft/70">
-                <span>SKU: {product.sku}</span>
-                <span className="capitalize">
-                  Catégorie: {product.category}
-                </span>
+              <h3 className="text-lg font-semibold text-ink">{product.nom}</h3>
+              <div className="flex flex-wrap gap-4 mt-2 text-sm text-ink-soft/70">
+                <span>Réf: {product.reference}</span>
+                <span className="capitalize">Catégorie: {product.categorie}</span>
+                <span>Stock: {product.stock_total ?? 0}</span>
               </div>
-              <p className="text-xl font-bold text-ink mt-2">
-                ${product.price}
-              </p>
             </div>
 
-            <div className="flex gap-2">
-              {onView && (
-                <button
-                  onClick={() => onView(product)}
-                  className="p-2 bg-ink text-ivory rounded hover:bg-ink-soft transition-colors"
-                  title="Voir">
-                  <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
-                </button>
+            <div className="flex items-center gap-4">
+              {product.prix_actuel != null && (
+                <p className="text-xl font-bold text-ink">${product.prix_actuel}</p>
               )}
-              {onEdit && (
-                <button
-                  onClick={() => onEdit(product)}
-                  className="p-2 bg-silver text-ink rounded hover:bg-silver-soft transition-colors"
-                  title="Éditer">
-                  <FontAwesomeIcon icon={faPencil} className="w-4 h-4" />
-                </button>
-              )}
-              {onDelete && (
-                <button
-                  onClick={() => onDelete(product._id)}
-                  className="p-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                  title="Supprimer">
-                  <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
-                </button>
-              )}
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-ivory-soft text-ink-soft">
+                {STATUT_LABELS[product.statut] ?? product.statut}
+              </span>
             </div>
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   );

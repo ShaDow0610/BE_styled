@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
-const PUBLIC_ROUTES = ['/login', '/api/auth/login', '/'];
+const PUBLIC_ROUTES = ['/login', '/api/auth/login'];
 
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  // La racine mène directement à la vitrine publique
+  if (pathname === '/') {
+    return NextResponse.redirect(new URL('/boutique', request.url));
+  }
 
   // Routes publiques - ne pas protéger
   if (PUBLIC_ROUTES.includes(pathname)) {
