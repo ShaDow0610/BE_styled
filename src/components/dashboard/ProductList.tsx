@@ -73,16 +73,16 @@ export const ProductList: React.FC<ProductListProps> = ({
           className="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-800">
+              <h3 className="text-lg font-semibold text-ink">
                 {product.name}
               </h3>
-              <div className="flex gap-4 mt-2 text-sm text-gray-600">
+              <div className="flex gap-4 mt-2 text-sm text-ink-soft/70">
                 <span>SKU: {product.sku}</span>
                 <span className="capitalize">
                   Catégorie: {product.category}
                 </span>
               </div>
-              <p className="text-xl font-bold text-blue-600 mt-2">
+              <p className="text-xl font-bold text-ink mt-2">
                 ${product.price}
               </p>
             </div>
@@ -91,7 +91,7 @@ export const ProductList: React.FC<ProductListProps> = ({
               {onView && (
                 <button
                   onClick={() => onView(product)}
-                  className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                  className="p-2 bg-ink text-ivory rounded hover:bg-ink-soft transition-colors"
                   title="Voir">
                   <FontAwesomeIcon icon={faEye} className="w-4 h-4" />
                 </button>
@@ -99,7 +99,7 @@ export const ProductList: React.FC<ProductListProps> = ({
               {onEdit && (
                 <button
                   onClick={() => onEdit(product)}
-                  className="p-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                  className="p-2 bg-silver text-ink rounded hover:bg-silver-soft transition-colors"
                   title="Éditer">
                   <FontAwesomeIcon icon={faPencil} className="w-4 h-4" />
                 </button>
@@ -107,7 +107,7 @@ export const ProductList: React.FC<ProductListProps> = ({
               {onDelete && (
                 <button
                   onClick={() => onDelete(product._id)}
-                  className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                  className="p-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                   title="Supprimer">
                   <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
                 </button>

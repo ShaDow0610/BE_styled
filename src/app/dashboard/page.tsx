@@ -85,7 +85,7 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
       </div>
     );
   }
@@ -97,10 +97,10 @@ export default function DashboardPage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
+        <h1 className="font-serif text-3xl text-ink">Dashboard</h1>
         <button
           onClick={handleLogout}
-          className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+          className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
           Se déconnecter
         </button>
       </motion.div>
@@ -111,28 +111,28 @@ export default function DashboardPage() {
           title="Total Produits"
           value={stats.totalProducts}
           icon={<FontAwesomeIcon icon={faBox} />}
-          color="bg-blue-500"
+          color="bg-ink"
           trend={12}
         />
         <StatCard
           title="Valeur Stock"
           value={`$${stats.totalValue.toLocaleString()}`}
           icon={<FontAwesomeIcon icon={faChartLine} />}
-          color="bg-green-500"
+          color="bg-ink-soft"
           trend={8}
         />
         <StatCard
           title="Stock Faible"
           value={stats.lowStockItems}
           icon={<FontAwesomeIcon icon={faCubes} />}
-          color="bg-orange-500"
+          color="bg-ink-soft"
           trend={-3}
         />
         <StatCard
           title="Catégories"
           value={stats.categories}
           icon={<FontAwesomeIcon icon={faBox} />}
-          color="bg-purple-500"
+          color="bg-ink"
         />
       </div>
 
@@ -142,13 +142,13 @@ export default function DashboardPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
         className="bg-white rounded-lg shadow-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+        <h2 className="font-serif text-2xl text-ink mb-6">
           Produits Récents
         </h2>
         {products.length > 0 ? (
           <ProductList products={products} />
         ) : (
-          <p className="text-gray-600 text-center py-8">
+          <p className="text-ink-soft/70 text-center py-8">
             Aucun produit trouvé. Commencez par ajouter des produits.
           </p>
         )}

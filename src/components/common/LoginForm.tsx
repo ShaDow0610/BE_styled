@@ -35,11 +35,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
       className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">Connexion</h2>
+      <h2 className="font-serif text-2xl text-ink mb-6">Connexion</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-ink-soft mb-2">
             Email
           </label>
           <input
@@ -47,13 +47,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={isLoading}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 disabled:bg-gray-100"
+            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink disabled:bg-ivory-soft"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-ink-soft mb-2">
             Mot de passe
           </label>
           <input
@@ -61,7 +61,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 disabled:bg-gray-100"
+            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink disabled:bg-ivory-soft"
             required
           />
         </div>
@@ -80,7 +80,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
           whileTap={{ scale: 0.98 }}
           type="submit"
           disabled={isLoading}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+          className="w-full bg-ink text-ivory py-2 rounded-lg font-medium hover:bg-ink-soft transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
           {isLoading ? (
             <>
               <FontAwesomeIcon

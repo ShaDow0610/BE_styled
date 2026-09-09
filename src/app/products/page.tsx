@@ -67,8 +67,8 @@ export default function ProductsPage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Produits</h1>
-        <button className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+        <h1 className="font-serif text-3xl text-ink">Produits</h1>
+        <button className="flex items-center gap-2 px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
           <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
           Nouveau Produit
         </button>
@@ -83,33 +83,33 @@ export default function ProductsPage() {
         <div className="grid md:grid-cols-2 gap-4">
           {/* Search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink-soft mb-2">
               Rechercher
             </label>
             <div className="relative">
               <FontAwesomeIcon
                 icon={faSearch}
-                className="absolute left-3 top-3 w-4 h-4 text-gray-400"
+                className="absolute left-3 top-3 w-4 h-4 text-silver"
               />
               <input
                 type="text"
                 placeholder="Nom ou SKU..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
               />
             </div>
           </div>
 
           {/* Category Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-ink-soft mb-2">
               Catégorie
             </label>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
               <option value="">Toutes les catégories</option>
               {CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
@@ -128,13 +128,13 @@ export default function ProductsPage() {
         transition={{ delay: 0.2 }}>
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
           </div>
         ) : filteredProducts.length > 0 ? (
           <ProductList products={filteredProducts} />
         ) : (
           <div className="bg-white rounded-lg shadow p-8 text-center">
-            <p className="text-gray-600 text-lg">
+            <p className="text-ink-soft/70 text-lg">
               Aucun produit trouvé avec ces critères.
             </p>
           </div>

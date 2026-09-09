@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/common/Navbar";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair",
+});
 
 export const metadata: Metadata = {
-  title: "Zephyr - Gestion de Stock Boutique",
+  title: "Be Styled",
   description:
-    "Application moderne de gestion de stock pour votre boutique de vêtements, accessoires, bijoux et chaussures.",
+    "Be Styled — gestion de stock élégante pour votre boutique de vêtements, accessoires, bijoux et chaussures.",
   keywords:
-    "gestion, stock, boutique, vêtements, accessoires, bijoux, chaussures",
+    "be styled, gestion, stock, boutique, vêtements, accessoires, bijoux, chaussures",
 };
 
 export default function RootLayout({
@@ -20,9 +24,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${playfair.variable} font-sans`}>
         <Navbar />
-        <main className="bg-gray-50 min-h-screen">{children}</main>
+        <main className="bg-ivory min-h-screen">{children}</main>
       </body>
     </html>
   );

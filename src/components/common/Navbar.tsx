@@ -44,12 +44,12 @@ export const Navbar = () => {
   ];
 
   return (
-    <nav
-      ref={navRef}
-      className="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg">
+    <nav ref={navRef} className="bg-ink text-ivory shadow-lg">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <Link href="/" className="text-2xl font-bold">
-          ✨ Zephyr
+        <Link
+          href="/"
+          className="font-serif text-2xl tracking-wide text-ivory">
+          BE STYLED
         </Link>
 
         {/* Desktop Menu */}
@@ -58,7 +58,7 @@ export const Navbar = () => {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-2 hover:text-blue-200 transition-colors">
+              className="flex items-center gap-2 text-sm tracking-wide hover:text-silver transition-colors">
               <FontAwesomeIcon icon={item.icon} className="w-4 h-4" />
               {item.label}
             </Link>
@@ -82,12 +82,12 @@ export const Navbar = () => {
         ref={menuRef}
         className="md:hidden overflow-hidden"
         style={{ height: 0, opacity: 0 }}>
-        <div className="bg-blue-700 px-4 py-3 flex flex-col gap-3">
+        <div className="bg-ink-soft px-4 py-3 flex flex-col gap-3">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-2 hover:text-blue-200 transition-colors py-2"
+              className="flex items-center gap-2 text-sm tracking-wide hover:text-silver transition-colors py-2"
               onClick={() => setIsOpen(false)}>
               <FontAwesomeIcon icon={item.icon} className="w-4 h-4" />
               {item.label}

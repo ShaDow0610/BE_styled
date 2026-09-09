@@ -20,7 +20,7 @@ export const StatCard: React.FC<CardProps> = ({
   value,
   icon,
   trend,
-  color = "bg-blue-500",
+  color = "bg-ink",
 }) => {
   const cardRef = useRef(null);
 

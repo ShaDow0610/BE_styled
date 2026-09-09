@@ -39,7 +39,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-ivory flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -57,7 +57,7 @@ export default function LoginPage() {
         )}
 
         <div className="text-center mt-6">
-          <p className="text-gray-600">
+          <p className="text-ink-soft/70">
             Utilisez les identifiants de test ou créez un admin utilisateur dans
             MongoDB
           </p>

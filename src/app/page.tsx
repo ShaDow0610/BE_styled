@@ -67,7 +67,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-ivory">
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-20">
         <motion.div
@@ -75,13 +75,13 @@ export default function Home() {
           className="text-center mb-12"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}>
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-800 mb-6">
-            ✨ Zephyr
+          <h1 className="font-serif text-5xl md:text-6xl tracking-wide text-ink mb-6">
+            BE STYLED
           </h1>
-          <p className="text-2xl text-gray-600 mb-8">
-            Gestion de stock intelligente pour votre boutique
+          <p className="text-2xl text-ink-soft mb-8">
+            Gestion de stock élégante pour votre boutique
           </p>
-          <p className="text-lg text-gray-500 max-w-2xl mx-auto">
+          <p className="text-lg text-ink-soft/70 max-w-2xl mx-auto">
             Gérez efficacement votre inventaire de vêtements, accessoires,
             bijoux, chaussures et outfits avec une interface moderne et
             performante.
@@ -94,12 +94,12 @@ export default function Home() {
           className="flex gap-4 justify-center flex-wrap mb-16">
           <Link
             href="/login"
-            className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-lg">
+            className="px-8 py-3 bg-ink text-ivory rounded-lg font-semibold hover:bg-ink-soft transition-colors shadow-lg">
             Se connecter
           </Link>
           <a
             href="#features"
-            className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors shadow-lg border-2 border-blue-600">
+            className="px-8 py-3 bg-white text-ink rounded-lg font-semibold hover:bg-ivory-soft transition-colors shadow-lg border-2 border-ink">
             En savoir plus
           </a>
         </motion.div>
@@ -115,13 +115,13 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1, duration: 0.5 }}
               className="bg-white rounded-lg p-8 shadow-lg hover:shadow-xl transition-shadow">
-              <div className="text-4xl text-blue-600 mb-4">
+              <div className="text-4xl text-ink mb-4">
                 <FontAwesomeIcon icon={feature.icon} className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-3">
+              <h3 className="text-xl font-bold text-ink mb-3">
                 {feature.title}
               </h3>
-              <p className="text-gray-600">{feature.description}</p>
+              <p className="text-ink-soft/80">{feature.description}</p>
             </motion.div>
           ))}
         </div>
@@ -132,14 +132,14 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6, duration: 0.5 }}
           className="mt-20 bg-white rounded-lg p-8 shadow-lg">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+          <h2 className="text-2xl font-bold text-ink mb-6 text-center">
             Technologie Moderne
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             <div>
-              <h3 className="font-semibold text-blue-600 mb-2">Frontend</h3>
-              <ul className="text-gray-600 space-y-1 text-sm">
-                <li>✓ Next.js 14</li>
+              <h3 className="font-semibold text-ink mb-2">Frontend</h3>
+              <ul className="text-ink-soft/80 space-y-1 text-sm">
+                <li>✓ Next.js 16</li>
                 <li>✓ React 19</li>
                 <li>✓ TypeScript</li>
                 <li>✓ Tailwind CSS</li>
@@ -147,8 +147,8 @@ export default function Home() {
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-blue-600 mb-2">Animations</h3>
-              <ul className="text-gray-600 space-y-1 text-sm">
+              <h3 className="font-semibold text-ink mb-2">Animations</h3>
+              <ul className="text-ink-soft/80 space-y-1 text-sm">
                 <li>✓ GSAP</li>
                 <li>✓ ScrollTrigger</li>
                 <li>✓ Lenis Motion</li>
@@ -156,8 +156,8 @@ export default function Home() {
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-blue-600 mb-2">Backend</h3>
-              <ul className="text-gray-600 space-y-1 text-sm">
+              <h3 className="font-semibold text-ink mb-2">Backend</h3>
+              <ul className="text-ink-soft/80 space-y-1 text-sm">
                 <li>✓ MongoDB</li>
                 <li>✓ API REST</li>
                 <li>✓ JWT Auth</li>
