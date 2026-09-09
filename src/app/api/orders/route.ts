@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
       product_variant_id: body.product_variant_id,
       type: body.type,
       statut: 'commande',
+      quantite: Math.max(1, Number(body.quantite) || 1),
       date_maj: new Date(),
     });
     return NextResponse.json({ success: true, data: order }, { status: 201 });

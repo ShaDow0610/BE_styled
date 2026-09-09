@@ -19,6 +19,7 @@ interface OrderEntry {
   _id: string;
   type: "reappro_fournisseur" | "commande_client";
   statut: string;
+  quantite: number;
   product_variant_id: {
     sku_variante: string;
     taille: string;
@@ -52,6 +53,7 @@ export default function OrdersPage() {
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedVariant, setSelectedVariant] = useState("");
   const [selectedType, setSelectedType] = useState<"reappro_fournisseur" | "commande_client">("reappro_fournisseur");
+  const [quantite, setQuantite] = useState("1");
   const [error, setError] = useState("");
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const draggedIdRef = useRef<string | null>(null);
@@ -103,7 +105,11 @@ export default function OrdersPage() {
     const res = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ product_variant_id: selectedVariant, type: selectedType }),
+      body: JSON.stringify({
+        product_variant_id: selectedVariant,
+        type: selectedType,
+        quantite: Number(quantite) || 1,
+      }),
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
@@ -112,6 +118,7 @@ export default function OrdersPage() {
     }
     setSelectedProduct("");
     setSelectedVariant("");
+    setQuantite("1");
     setShowForm(false);
     load();
   };
@@ -146,7 +153,7 @@ export default function OrdersPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleCreate} className="bg-white rounded-lg shadow p-6 mb-6 grid md:grid-cols-4 gap-4">
+        <form onSubmit={handleCreate} className="bg-white rounded-lg shadow p-6 mb-6 grid md:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-ink-soft mb-2">Produit</label>
             <select
@@ -182,12 +189,22 @@ export default function OrdersPage() {
               <option value="commande_client">Commande client</option>
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-ink-soft mb-2">Quantité</label>
+            <input
+              type="number"
+              min="1"
+              value={quantite}
+              onChange={(e) => setQuantite(e.target.value)}
+              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+            />
+          </div>
           <div className="flex items-end">
             <button type="submit" className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
               Créer
             </button>
           </div>
-          {error && <p className="md:col-span-4 text-sm text-red-600">{error}</p>}
+          {error && <p className="md:col-span-5 text-sm text-red-600">{error}</p>}
         </form>
       )}
 
@@ -222,9 +239,14 @@ export default function OrdersPage() {
                       <p className="text-ink-soft/70 mt-1">
                         {o.product_variant_id?.sku_variante}
                       </p>
-                      <span className="inline-block mt-2 px-2 py-0.5 rounded-full bg-ivory-soft text-ink-soft text-[10px]">
-                        {TYPE_LABELS[o.type]}
-                      </span>
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <span className="px-2 py-0.5 rounded-full bg-ivory-soft text-ink-soft text-[10px]">
+                          {TYPE_LABELS[o.type]}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-ivory-soft text-ink-soft text-[10px]">
+                          x{o.quantite}
+                        </span>
+                      </div>
                       {canWrite && (
                         <select
                           value={o.statut}

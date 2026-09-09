@@ -11,7 +11,10 @@
       "PowerShell($p = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess; if \\($p\\) { Stop-Process -Id $p -Force; \"stopped $p\" } else { \"nothing listening\" })",
       "PowerShell(npm run dev)",
       "Bash(node verify-boutique.js)",
-      "Bash(node verify-root-redirect.js)"
+      "Bash(node verify-root-redirect.js)",
+      "Bash(npm install *)",
+      "Bash(node verify-redesign.js)",
+      "Bash(node verify-redesign-2.js)"
     ]
   }
 }

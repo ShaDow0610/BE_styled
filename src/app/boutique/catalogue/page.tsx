@@ -1,9 +1,33 @@
 import Link from "next/link";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faShirt,
+  faSocks,
+  faRing,
+  faGem,
+  faClock,
+  faShoePrints,
+  faHatCowboy,
+  faGlasses,
+  faTags,
+  type IconDefinition,
+} from "@fortawesome/free-solid-svg-icons";
+import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
 import { getPublicProducts } from "@/lib/publicCatalog";
+import { buildWhatsAppLink } from "@/lib/whatsapp";
 
-const CATEGORIES = [
-  "pantalon", "chemise", "tricot", "culotte", "bracelet",
-  "montre", "chaussure", "bague", "chapeau", "lunette", "autre",
+const CATEGORIES: { key: string; icon: IconDefinition }[] = [
+  { key: "pantalon", icon: faSocks },
+  { key: "chemise", icon: faShirt },
+  { key: "tricot", icon: faShirt },
+  { key: "culotte", icon: faSocks },
+  { key: "bracelet", icon: faGem },
+  { key: "montre", icon: faClock },
+  { key: "chaussure", icon: faShoePrints },
+  { key: "bague", icon: faRing },
+  { key: "chapeau", icon: faHatCowboy },
+  { key: "lunette", icon: faGlasses },
+  { key: "autre", icon: faTags },
 ];
 
 type SearchParams = Promise<{ categorie?: string; couleur?: string; taille?: string }>;
@@ -30,15 +54,17 @@ export default async function CataloguePage({ searchParams }: { searchParams: Se
       <div className="flex flex-wrap gap-3 mb-8">
         <Link
           href={buildLink({ categorie: undefined })}
-          className={`px-4 py-2 rounded-full text-sm ${!categorie ? "bg-ink text-ivory" : "bg-white text-ink-soft border border-silver-soft"}`}>
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-colors ${!categorie ? "bg-ink text-ivory" : "bg-white text-ink-soft border border-silver-soft hover:border-ink"}`}>
+          <FontAwesomeIcon icon={faTags} className="w-3.5 h-3.5" />
           Toutes catégories
         </Link>
         {CATEGORIES.map((cat) => (
           <Link
-            key={cat}
-            href={buildLink({ categorie: cat })}
-            className={`px-4 py-2 rounded-full text-sm capitalize ${categorie === cat ? "bg-ink text-ivory" : "bg-white text-ink-soft border border-silver-soft"}`}>
-            {cat}
+            key={cat.key}
+            href={buildLink({ categorie: cat.key })}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm capitalize transition-colors ${categorie === cat.key ? "bg-ink text-ivory" : "bg-white text-ink-soft border border-silver-soft hover:border-ink"}`}>
+            <FontAwesomeIcon icon={cat.icon} className="w-3.5 h-3.5" />
+            {cat.key}
           </Link>
         ))}
       </div>
@@ -63,26 +89,41 @@ export default async function CataloguePage({ searchParams }: { searchParams: Se
           <p className="text-ink-soft/70">Aucun produit ne correspond à ces critères.</p>
         </div>
       ) : (
-        <div className="grid md:grid-cols-4 gap-6">
+        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-6">
           {products.map((product) => (
-            <Link
+            <div
               key={product._id}
-              href={`/boutique/produit/${product._id}`}
-              className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden">
-              {product.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={product.image} alt={product.nom} className="w-full h-48 object-cover bg-ivory-soft" />
-              ) : (
-                <div className="w-full h-48 bg-ivory-soft" />
-              )}
-              <div className="p-4">
-                <h3 className="font-semibold text-ink">{product.nom}</h3>
-                <p className="text-ink-soft/70 text-xs capitalize mt-1">{product.categorie}</p>
-                {product.prix != null && (
-                  <p className="text-ink font-bold mt-2">${product.prix}</p>
+              className="bg-white rounded-lg shadow hover:shadow-xl transition-shadow overflow-hidden group">
+              <Link href={`/boutique/produit/${product._id}`}>
+                {product.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={product.image}
+                    alt={product.nom}
+                    className="w-full h-48 object-cover bg-ivory-soft group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-48 bg-ivory-soft" />
                 )}
+                <div className="p-4">
+                  <h3 className="font-semibold text-ink">{product.nom}</h3>
+                  <p className="text-ink-soft/70 text-xs capitalize mt-1">{product.categorie}</p>
+                  {product.prix != null && (
+                    <p className="text-ink font-bold mt-2">${product.prix}</p>
+                  )}
+                </div>
+              </Link>
+              <div className="px-4 pb-4">
+                <a
+                  href={buildWhatsAppLink({ nom: product.nom, reference: product.reference })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-2 border border-ink text-ink rounded-lg text-sm font-medium hover:bg-ink hover:text-ivory transition-colors">
+                  <FontAwesomeIcon icon={faWhatsapp} className="w-4 h-4" />
+                  Commander
+                </a>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}

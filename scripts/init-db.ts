@@ -12,6 +12,7 @@ import ProductVariant from '../src/lib/models/ProductVariant';
 import ProductPricing from '../src/lib/models/ProductPricing';
 import Brand from '../src/lib/models/Brand';
 import Supplier from '../src/lib/models/Supplier';
+import OrderTracking from '../src/lib/models/OrderTracking';
 import { calculatePricing } from '../src/lib/pricing';
 
 dotenv.config({ path: '.env.local' });
@@ -195,6 +196,31 @@ async function initDB() {
       }
 
       console.log(`✓ Produit prêt: ${product.nom}`);
+    }
+
+    console.log('💰 Création de ventes de test (30 derniers jours)...');
+    const existingSale = await OrderTracking.findOne({ type: 'commande_client', statut: 'livre_client' });
+    if (!existingSale) {
+      const salesSeed = [
+        { sku: 'BSTY-PANT-001-M-NOIR', quantite: 2, joursAvant: 3 },
+        { sku: 'BSTY-CHEM-001-S-BLANC', quantite: 1, joursAvant: 8 },
+        { sku: 'BSTY-CHAU-001-40-BLANC', quantite: 3, joursAvant: 15 },
+      ];
+      for (const sale of salesSeed) {
+        const variant = await ProductVariant.findOne({ sku_variante: sale.sku });
+        if (!variant) continue;
+        await OrderTracking.create({
+          product_variant_id: variant._id,
+          type: 'commande_client',
+          statut: 'livre_client',
+          quantite: sale.quantite,
+          stock_applique: true,
+          date_maj: new Date(Date.now() - sale.joursAvant * 24 * 60 * 60 * 1000),
+        });
+      }
+      console.log('✓ Ventes de test créées');
+    } else {
+      console.log('⚠️ Des ventes existent déjà, skipping');
     }
 
     console.log('\n✨ Base de données initialisée avec succès!');

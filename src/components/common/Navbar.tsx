@@ -12,6 +12,7 @@ import {
   faCog,
   faShirt,
   faTruck,
+  faArrowUpRightFromSquare,
 } from "@fortawesome/free-solid-svg-icons";
 
 export const Navbar = () => {
@@ -65,6 +66,14 @@ export const Navbar = () => {
               {item.label}
             </Link>
           ))}
+          <a
+            href="/boutique"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-sm tracking-wide text-silver-soft/60 hover:text-silver transition-colors">
+            <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="w-3.5 h-3.5" />
+            Voir la boutique
+          </a>
         </div>
 
         {/* Mobile Menu Button */}
@@ -95,6 +104,14 @@ export const Navbar = () => {
               {item.label}
             </Link>
           ))}
+          <a
+            href="/boutique"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-sm tracking-wide text-silver-soft/60 hover:text-silver transition-colors py-2">
+            <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="w-3.5 h-3.5" />
+            Voir la boutique
+          </a>
         </div>
       </div>
     </nav>
