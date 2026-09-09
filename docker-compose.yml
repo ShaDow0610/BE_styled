@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: zephyr-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: zephyr
+      MONGO_INITDB_ROOT_PASSWORD: zephyr-secure-pass
+      MONGO_INITDB_DATABASE: zephyr-boutique
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zephyr-network
+
+  app:
+    build: .
+    container_name: zephyr-app
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://zephyr:zephyr-secure-pass@mongodb:27017/zephyr-boutique?authSource=admin
+      - JWT_SECRET=your-secure-jwt-secret-change-this
+      - SESSION_SECRET=your-secure-session-secret-change-this
+      - NEXT_PUBLIC_API_URL=http://localhost:3000/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - zephyr-network
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+    driver: local
+  mongo-config:
+    driver: local
+
+networks:
+  zephyr-network:
+    driver: bridge
