@@ -116,16 +116,20 @@ export default function OrdersPage() {
     load();
   };
 
-  const handleDrop = async (statut: string) => {
-    setDragOverColumn(null);
-    const orderId = draggedIdRef.current;
-    if (!orderId) return;
+  const updateStatus = async (orderId: string, statut: string) => {
     setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, statut } : o)));
     await fetch(`/api/orders/${orderId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ statut }),
     });
+  };
+
+  const handleDrop = async (statut: string) => {
+    setDragOverColumn(null);
+    const orderId = draggedIdRef.current;
+    if (!orderId) return;
+    updateStatus(orderId, statut);
   };
 
   return (
@@ -221,6 +225,17 @@ export default function OrdersPage() {
                       <span className="inline-block mt-2 px-2 py-0.5 rounded-full bg-ivory-soft text-ink-soft text-[10px]">
                         {TYPE_LABELS[o.type]}
                       </span>
+                      {canWrite && (
+                        <select
+                          value={o.statut}
+                          onChange={(e) => updateStatus(o._id, e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="md:hidden mt-2 w-full text-[11px] px-2 py-1 border border-silver-soft rounded">
+                          {STATUSES.map((s) => (
+                            <option key={s.key} value={s.key}>{s.label}</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                   ))}
               </div>

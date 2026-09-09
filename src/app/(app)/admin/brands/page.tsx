@@ -72,11 +72,11 @@ export default function BrandsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
           <h1 className="font-serif text-3xl text-ink">Marques partenaires</h1>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           {canWrite && (
             <button
               onClick={() => setShowForm((v) => !v)}
@@ -130,6 +130,7 @@ export default function BrandsPage() {
         ) : brands.length === 0 ? (
           <p className="text-ink-soft/70 text-sm">Aucune marque pour le moment.</p>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
@@ -156,6 +157,7 @@ export default function BrandsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

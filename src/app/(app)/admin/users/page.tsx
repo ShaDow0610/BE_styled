@@ -101,9 +101,9 @@ export default function UsersPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <h1 className="font-serif text-3xl text-ink">Utilisateurs</h1>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={() => setShowForm((v) => !v)}
             className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
@@ -161,6 +161,7 @@ export default function UsersPage() {
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-ink"></div>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
@@ -198,6 +199,7 @@ export default function UsersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>
