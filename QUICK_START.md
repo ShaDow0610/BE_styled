@@ -5,6 +5,7 @@ Mise en route rapide de l'application en 5 minutes!
 ## ⚡ Installation Express
 
 ### 1️⃣ Prérequis
+
 - Node.js 18+ installé
 - MongoDB local OU MongoDB Atlas
 - Git
@@ -32,6 +33,7 @@ nano .env.local
 ```
 
 **Important:**
+
 - `MONGODB_URI` = votre connexion MongoDB
 - `JWT_SECRET` = changez cette clé!
 - `SESSION_SECRET` = changez cette clé!
@@ -109,20 +111,24 @@ npm run docker:stop  # Docker compose down
 ## 🆘 Problèmes Courants
 
 ### "MongoDB connection error"
+
 → Vérifier MONGODB_URI dans .env.local
 → MongoDB doit être en cours d'exécution
 
 ### "Cannot find module"
+
 → `npm install` encore
 → Redémarrer le serveur dev
 
 ### "Port 3000 déjà utilisé"
+
 ```bash
 # Utiliser un autre port
 PORT=3001 npm run dev
 ```
 
 ### "Authentification échouée"
+
 → Vérifier que init-db a réussi
 → Vérifier les identifiants
 

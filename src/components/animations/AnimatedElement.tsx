@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useEffect, useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
 interface AnimatedElementProps {
   children: React.ReactNode;
-  animation?: 'fadeIn' | 'slideUp' | 'slideDown' | 'scaleIn' | 'rotateIn';
+  animation?: "fadeIn" | "slideUp" | "slideDown" | "scaleIn" | "rotateIn";
   delay?: number;
   duration?: number;
   trigger?: boolean;
@@ -16,7 +16,7 @@ interface AnimatedElementProps {
 
 export const AnimatedElement: React.FC<AnimatedElementProps> = ({
   children,
-  animation = 'fadeIn',
+  animation = "fadeIn",
   delay = 0,
   duration = 0.6,
   trigger = false,
@@ -37,36 +37,28 @@ export const AnimatedElement: React.FC<AnimatedElementProps> = ({
     const config = animationConfigs[animation] || animationConfigs.fadeIn;
 
     if (trigger) {
-      gsap.fromTo(
-        ref.current,
-        config,
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          rotation: 0,
-          duration: config.duration,
-          delay: config.delay,
-          scrollTrigger: {
-            trigger: ref.current,
-            start: 'top 80%',
-            once: true,
-          },
-        }
-      );
+      gsap.fromTo(ref.current, config, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        rotation: 0,
+        duration: config.duration,
+        delay: config.delay,
+        scrollTrigger: {
+          trigger: ref.current,
+          start: "top 80%",
+          once: true,
+        },
+      });
     } else {
-      gsap.fromTo(
-        ref.current,
-        config,
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          rotation: 0,
-          duration: config.duration,
-          delay: config.delay,
-        }
-      );
+      gsap.fromTo(ref.current, config, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        rotation: 0,
+        duration: config.duration,
+        delay: config.delay,
+      });
     }
   }, [animation, delay, duration, trigger]);
 

@@ -9,7 +9,8 @@ export const metadata: Metadata = {
   title: "Zephyr - Gestion de Stock Boutique",
   description:
     "Application moderne de gestion de stock pour votre boutique de vêtements, accessoires, bijoux et chaussures.",
-  keywords: "gestion, stock, boutique, vêtements, accessoires, bijoux, chaussures",
+  keywords:
+    "gestion, stock, boutique, vêtements, accessoires, bijoux, chaussures",
 };
 
 export default function RootLayout({
@@ -21,9 +22,7 @@ export default function RootLayout({
     <html lang="fr">
       <body className={inter.className}>
         <Navbar />
-        <main className="bg-gray-50 min-h-screen">
-          {children}
-        </main>
+        <main className="bg-gray-50 min-h-screen">{children}</main>
       </body>
     </html>
   );

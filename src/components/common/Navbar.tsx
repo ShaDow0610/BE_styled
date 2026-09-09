@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
-import gsap from 'gsap';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import gsap from "gsap";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBars,
   faTimes,
@@ -11,7 +11,7 @@ import {
   faCubes,
   faShoppingCart,
   faCog,
-} from '@fortawesome/free-solid-svg-icons';
+} from "@fortawesome/free-solid-svg-icons";
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,30 +21,32 @@ export const Navbar = () => {
   useEffect(() => {
     if (isOpen && menuRef.current) {
       gsap.to(menuRef.current, {
-        height: 'auto',
+        height: "auto",
         opacity: 1,
         duration: 0.3,
-        ease: 'power2.out',
+        ease: "power2.out",
       });
     } else if (menuRef.current) {
       gsap.to(menuRef.current, {
         height: 0,
         opacity: 0,
         duration: 0.3,
-        ease: 'power2.in',
+        ease: "power2.in",
       });
     }
   }, [isOpen]);
 
   const navItems = [
-    { href: '/dashboard', label: 'Dashboard', icon: faCubes },
-    { href: '/products', label: 'Produits', icon: faBox },
-    { href: '/stock', label: 'Stock', icon: faShoppingCart },
-    { href: '/admin', label: 'Admin', icon: faCog },
+    { href: "/dashboard", label: "Dashboard", icon: faCubes },
+    { href: "/products", label: "Produits", icon: faBox },
+    { href: "/stock", label: "Stock", icon: faShoppingCart },
+    { href: "/admin", label: "Admin", icon: faCog },
   ];
 
   return (
-    <nav ref={navRef} className="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg">
+    <nav
+      ref={navRef}
+      className="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         <Link href="/" className="text-2xl font-bold">
           ✨ Zephyr
@@ -56,8 +58,7 @@ export const Navbar = () => {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-2 hover:text-blue-200 transition-colors"
-            >
+              className="flex items-center gap-2 hover:text-blue-200 transition-colors">
               <FontAwesomeIcon icon={item.icon} className="w-4 h-4" />
               {item.label}
             </Link>
@@ -68,8 +69,7 @@ export const Navbar = () => {
         <button
           className="md:hidden"
           onClick={() => setIsOpen(!isOpen)}
-          aria-label="Toggle menu"
-        >
+          aria-label="Toggle menu">
           <FontAwesomeIcon
             icon={isOpen ? faTimes : faBars}
             className="w-6 h-6"
@@ -81,16 +81,14 @@ export const Navbar = () => {
       <div
         ref={menuRef}
         className="md:hidden overflow-hidden"
-        style={{ height: 0, opacity: 0 }}
-      >
+        style={{ height: 0, opacity: 0 }}>
         <div className="bg-blue-700 px-4 py-3 flex flex-col gap-3">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className="flex items-center gap-2 hover:text-blue-200 transition-colors py-2"
-              onClick={() => setIsOpen(false)}
-            >
+              onClick={() => setIsOpen(false)}>
               <FontAwesomeIcon icon={item.icon} className="w-4 h-4" />
               {item.label}
             </Link>

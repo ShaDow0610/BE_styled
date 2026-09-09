@@ -29,22 +29,24 @@ npm run dev
 
 ## 📦 Technologies Utilisées
 
-| Category | Tools |
-|----------|-------|
-| **Frontend** | Next.js 14, React 19, TypeScript, Tailwind CSS |
-| **Animations** | GSAP, ScrollTrigger, Framer Motion, Lenis |
-| **Icons** | FontAwesome 6 |
-| **Backend** | Next.js API Routes |
-| **Database** | MongoDB + Mongoose |
-| **Security** | JWT, bcryptjs |
+| Category       | Tools                                          |
+| -------------- | ---------------------------------------------- |
+| **Frontend**   | Next.js 14, React 19, TypeScript, Tailwind CSS |
+| **Animations** | GSAP, ScrollTrigger, Framer Motion, Lenis      |
+| **Icons**      | FontAwesome 6                                  |
+| **Backend**    | Next.js API Routes                             |
+| **Database**   | MongoDB + Mongoose                             |
+| **Security**   | JWT, bcryptjs                                  |
 
 ## 📍 Pages & Routes
 
 ### Public
+
 - `/` - Page d'accueil
 - `/login` - Connexion
 
 ### Protected (Auth Required)
+
 - `/dashboard` - Dashboard principal
 - `/products` - Liste des produits
 - `/admin` - Panel admin
@@ -52,6 +54,7 @@ npm run dev
 ## 🔌 API Endpoints
 
 ### Authentication
+
 ```
 POST /api/auth/login
   body: { email, password }
@@ -59,6 +62,7 @@ POST /api/auth/login
 ```
 
 ### Products
+
 ```
 GET /api/products?category=clothing&limit=10
 POST /api/products
@@ -67,6 +71,7 @@ DELETE /api/products/:id
 ```
 
 ### Stock
+
 ```
 GET /api/stock?status=low-stock&warehouse=Main
 POST /api/stock
@@ -76,16 +81,19 @@ PATCH /api/stock
 ## 🎨 Animations en Action
 
 ### 1. Page d'accueil
+
 - Hero title: slide up + fade in
 - Features: stagger animation
 - Tech stack: scale in
 
 ### 2. Dashboard
+
 - Stat cards: slide up en cascade
 - Product list: scroll trigger animations
 - Charts: progressive loading
 
 ### 3. Navigation
+
 - Menu mobile: height animation
 - Hover effects: scale + shadow
 - Transitions: smooth 300ms
@@ -93,6 +101,7 @@ PATCH /api/stock
 ## 🔐 Authentification
 
 ### Login Flow
+
 1. Utilisateur entre email/password
 2. POST à `/api/auth/login`
 3. Serveur valide et retourne JWT token
@@ -100,22 +109,25 @@ PATCH /api/stock
 5. Redirect vers dashboard
 
 ### Protected Routes
+
 ```typescript
 useEffect(() => {
-  const token = localStorage.getItem('token');
-  if (!token) router.push('/login');
+  const token = localStorage.getItem("token");
+  if (!token) router.push("/login");
 }, []);
 ```
 
 ## 💾 Modèles MongoDB
 
 ### Product
+
 - Vêtements, accessoires, bijoux, chaussures, outfits
 - Priced & costed
 - Variantes: couleurs, tailles
 - Ratings & reviews
 
 ### Stock
+
 - Linked to Product
 - Quantity tracking
 - Min/max alerts
@@ -123,18 +135,21 @@ useEffect(() => {
 - Status: in-stock, low-stock, out-of-stock
 
 ### User
+
 - Admin/Manager/Staff roles
 - Permissions array
 - Password hashed with bcryptjs
 - Last login tracking
 
 ### Outfit
+
 - Collections de produits
 - Season & occasion tags
 - Pre-composed looks
 - Total price calculation
 
 ### Order
+
 - Order line items
 - Status workflow
 - Shipping dates
@@ -143,18 +158,21 @@ useEffect(() => {
 ## 🚀 Déploiement
 
 ### Vercel (Recommandé)
+
 ```bash
 # Juste push sur GitHub, Vercel déploie automatiquement
 # N'oublie pas les env vars!
 ```
 
 ### Docker
+
 ```bash
 docker build -t zephyr .
 docker run -p 3000:3000 -e MONGODB_URI=... zephyr
 ```
 
 ### Railway/Render
+
 Support natif Next.js + MongoDB Atlas
 
 ## 📊 Performance
@@ -208,18 +226,21 @@ A: Vérifiez les logs serveur, optimisez les requêtes DB
 ## 🎓 Tutoriels et Astuces
 
 ### Ajouter un nouveau produit
+
 1. Remplir le formulaire dans /products
 2. Envoyer POST à /api/products
 3. Créer une entrée stock correspondante
 4. Valider sur le dashboard
 
 ### Créer un outfit
+
 1. Sélectionner les produits
 2. Définir l'occasion/season
 3. Calculer le prix total
 4. Publier
 
 ### Gérer le stock
+
 1. Définir min/max quantities
 2. Surveiller les alertes low-stock
 3. Mettre à jour les quantités

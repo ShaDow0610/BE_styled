@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
-import Link from 'next/link';
-import gsap from 'gsap';
-import { motion } from 'framer-motion';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useEffect, useRef } from "react";
+import Link from "next/link";
+import gsap from "gsap";
+import { motion } from "framer-motion";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBox,
   faCubes,
   faChartLine,
   faShieldAlt,
   faRocket,
-} from '@fortawesome/free-solid-svg-icons';
+} from "@fortawesome/free-solid-svg-icons";
 
 export default function Home() {
   const titleRef = useRef(null);
@@ -22,7 +22,7 @@ export default function Home() {
       gsap.fromTo(
         titleRef.current,
         { opacity: 0, y: 50 },
-        { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }
+        { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" },
       );
     }
 
@@ -30,7 +30,7 @@ export default function Home() {
       gsap.fromTo(
         ctaRef.current,
         { opacity: 0, y: 30 },
-        { opacity: 1, y: 0, duration: 0.8, delay: 0.3, ease: 'power3.out' }
+        { opacity: 1, y: 0, duration: 0.8, delay: 0.3, ease: "power3.out" },
       );
     }
   }, []);
@@ -38,28 +38,31 @@ export default function Home() {
   const features = [
     {
       icon: faCubes,
-      title: 'Gestion de Stock',
-      description: 'Suivi en temps réel de vos stocks de vêtements et accessoires',
+      title: "Gestion de Stock",
+      description:
+        "Suivi en temps réel de vos stocks de vêtements et accessoires",
     },
     {
       icon: faChartLine,
-      title: 'Analytics',
-      description: 'Tableaux de bord détaillés avec statistiques complètes',
+      title: "Analytics",
+      description: "Tableaux de bord détaillés avec statistiques complètes",
     },
     {
       icon: faBox,
-      title: 'Catégories',
-      description: 'Organisez vos produits: vêtements, bijoux, chaussures, outfits',
+      title: "Catégories",
+      description:
+        "Organisez vos produits: vêtements, bijoux, chaussures, outfits",
     },
     {
       icon: faShieldAlt,
-      title: 'Sécurisé',
-      description: 'Authentification JWT et gestion des permissions d\'accès',
+      title: "Sécurisé",
+      description: "Authentification JWT et gestion des permissions d'accès",
     },
     {
       icon: faRocket,
-      title: 'Performance',
-      description: 'Optimisé avec Next.js 14 et Turbopack pour une vitesse maximale',
+      title: "Performance",
+      description:
+        "Optimisé avec Next.js 14 et Turbopack pour une vitesse maximale",
     },
   ];
 
@@ -71,8 +74,7 @@ export default function Home() {
           ref={titleRef}
           className="text-center mb-12"
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
+          animate={{ opacity: 1 }}>
           <h1 className="text-5xl md:text-6xl font-bold text-gray-800 mb-6">
             ✨ Zephyr
           </h1>
@@ -80,40 +82,39 @@ export default function Home() {
             Gestion de stock intelligente pour votre boutique
           </p>
           <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-            Gérez efficacement votre inventaire de vêtements, accessoires, bijoux,
-            chaussures et outfits avec une interface moderne et performante.
+            Gérez efficacement votre inventaire de vêtements, accessoires,
+            bijoux, chaussures et outfits avec une interface moderne et
+            performante.
           </p>
         </motion.div>
 
         {/* CTA Buttons */}
         <motion.div
           ref={ctaRef}
-          className="flex gap-4 justify-center flex-wrap mb-16"
-        >
+          className="flex gap-4 justify-center flex-wrap mb-16">
           <Link
             href="/login"
-            className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-lg"
-          >
+            className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-lg">
             Se connecter
           </Link>
           <a
             href="#features"
-            className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors shadow-lg border-2 border-blue-600"
-          >
+            className="px-8 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors shadow-lg border-2 border-blue-600">
             En savoir plus
           </a>
         </motion.div>
 
         {/* Features */}
-        <div id="features" className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-20">
+        <div
+          id="features"
+          className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-20">
           {features.map((feature, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1, duration: 0.5 }}
-              className="bg-white rounded-lg p-8 shadow-lg hover:shadow-xl transition-shadow"
-            >
+              className="bg-white rounded-lg p-8 shadow-lg hover:shadow-xl transition-shadow">
               <div className="text-4xl text-blue-600 mb-4">
                 <FontAwesomeIcon icon={feature.icon} className="w-8 h-8" />
               </div>
@@ -130,8 +131,7 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6, duration: 0.5 }}
-          className="mt-20 bg-white rounded-lg p-8 shadow-lg"
-        >
+          className="mt-20 bg-white rounded-lg p-8 shadow-lg">
           <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
             Technologie Moderne
           </h2>

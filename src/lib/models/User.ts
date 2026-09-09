@@ -32,18 +32,13 @@ const UserSchema = new Schema<IUser, IUserModel>(
 );
 
 // Hash password before saving
-UserSchema.pre('save', async function (next: any) {
+UserSchema.pre('save', function (this: any) {
   if (!this.isModified('password')) {
-    return next();
+    return;
   }
 
-  try {
-    const salt = await bcrypt.genSalt(10);
-    (this as any).password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error as any);
-  }
+  const salt = bcrypt.genSaltSync(10);
+  this.password = bcrypt.hashSync(this.password, salt);
 });
 
 // Method to compare passwords

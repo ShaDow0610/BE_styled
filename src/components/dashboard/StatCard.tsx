@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import gsap from 'gsap';
-import ScrollToPlugin from 'gsap/ScrollToPlugin';
+import { useRef, useEffect } from "react";
+import { motion } from "framer-motion";
+import gsap from "gsap";
+import ScrollToPlugin from "gsap/ScrollToPlugin";
 
 gsap.registerPlugin(ScrollToPlugin);
 
@@ -20,7 +20,7 @@ export const StatCard: React.FC<CardProps> = ({
   value,
   icon,
   trend,
-  color = 'bg-blue-500',
+  color = "bg-blue-500",
 }) => {
   const cardRef = useRef(null);
 
@@ -32,27 +32,27 @@ export const StatCard: React.FC<CardProps> = ({
     const handleMouseEnter = () => {
       gsap.to(card, {
         scale: 1.05,
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+        boxShadow: "0 20px 40px rgba(0, 0, 0, 0.2)",
         duration: 0.3,
-        ease: 'power2.out',
+        ease: "power2.out",
       });
     };
 
     const handleMouseLeave = () => {
       gsap.to(card, {
         scale: 1,
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
         duration: 0.3,
-        ease: 'power2.out',
+        ease: "power2.out",
       });
     };
 
-    card.addEventListener('mouseenter', handleMouseEnter);
-    card.addEventListener('mouseleave', handleMouseLeave);
+    card.addEventListener("mouseenter", handleMouseEnter);
+    card.addEventListener("mouseleave", handleMouseLeave);
 
     return () => {
-      card.removeEventListener('mouseenter', handleMouseEnter);
-      card.removeEventListener('mouseleave', handleMouseLeave);
+      card.removeEventListener("mouseenter", handleMouseEnter);
+      card.removeEventListener("mouseleave", handleMouseLeave);
     };
   }, []);
 
@@ -62,15 +62,16 @@ export const StatCard: React.FC<CardProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className={`${color} rounded-lg p-6 text-white shadow-lg`}
-    >
+      className={`${color} rounded-lg p-6 text-white shadow-lg`}>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm opacity-80">{title}</p>
           <h3 className="text-3xl font-bold mt-2">{value}</h3>
           {trend !== undefined && (
-            <p className={`text-sm mt-1 ${trend > 0 ? 'text-green-200' : 'text-red-200'}`}>
-              {trend > 0 ? '+' : ''}{trend}% from last month
+            <p
+              className={`text-sm mt-1 ${trend > 0 ? "text-green-200" : "text-red-200"}`}>
+              {trend > 0 ? "+" : ""}
+              {trend}% from last month
             </p>
           )}
         </div>

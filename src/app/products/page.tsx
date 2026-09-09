@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import ProductList from '@/components/dashboard/ProductList';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import ProductList from "@/components/dashboard/ProductList";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPlus, faSearch } from "@fortawesome/free-solid-svg-icons";
 
 interface Product {
   _id: string;
@@ -16,19 +16,19 @@ interface Product {
   images?: string[];
 }
 
-const CATEGORIES = ['clothing', 'accessories', 'jewelry', 'shoes', 'outfit'];
+const CATEGORIES = ["clothing", "accessories", "jewelry", "shoes", "outfit"];
 
 export default function ProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (!token) {
-      router.push('/login');
+      router.push("/login");
       return;
     }
 
@@ -39,8 +39,8 @@ export default function ProductsPage() {
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
-      if (selectedCategory) params.append('category', selectedCategory);
-      params.append('limit', '50');
+      if (selectedCategory) params.append("category", selectedCategory);
+      params.append("limit", "50");
 
       const response = await fetch(`/api/products?${params}`);
       if (response.ok) {
@@ -48,7 +48,7 @@ export default function ProductsPage() {
         setProducts(data.data);
       }
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error("Error fetching products:", error);
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +57,7 @@ export default function ProductsPage() {
   const filteredProducts = products.filter(
     (p) =>
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+      p.sku.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
@@ -66,8 +66,7 @@ export default function ProductsPage() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex justify-between items-center mb-8"
-      >
+        className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Produits</h1>
         <button className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
           <FontAwesomeIcon icon={faPlus} className="w-4 h-4" />
@@ -80,8 +79,7 @@ export default function ProductsPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-white rounded-lg shadow p-6 mb-6"
-      >
+        className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="grid md:grid-cols-2 gap-4">
           {/* Search */}
           <div>
@@ -111,8 +109,7 @@ export default function ProductsPage() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-            >
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
               <option value="">Toutes les catégories</option>
               {CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
@@ -128,8 +125,7 @@ export default function ProductsPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
+        transition={{ delay: 0.2 }}>
         {isLoading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>

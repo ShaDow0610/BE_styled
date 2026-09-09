@@ -1,27 +1,32 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCog, faUsers, faDatabase, faBell } from '@fortawesome/free-solid-svg-icons';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCog,
+  faUsers,
+  faDatabase,
+  faBell,
+} from "@fortawesome/free-solid-svg-icons";
 
 export default function AdminPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
+    const token = localStorage.getItem("token");
+    const userData = localStorage.getItem("user");
 
     if (!token || !userData) {
-      router.push('/login');
+      router.push("/login");
       return;
     }
 
     const parsed = JSON.parse(userData);
-    if (parsed.role !== 'admin') {
-      router.push('/dashboard');
+    if (parsed.role !== "admin") {
+      router.push("/dashboard");
       return;
     }
 
@@ -31,27 +36,27 @@ export default function AdminPage() {
   const adminSections = [
     {
       icon: faUsers,
-      title: 'Gestion des Utilisateurs',
-      description: 'Gérer les rôles et les permissions',
-      action: 'Gérer',
+      title: "Gestion des Utilisateurs",
+      description: "Gérer les rôles et les permissions",
+      action: "Gérer",
     },
     {
       icon: faDatabase,
-      title: 'Base de Données',
-      description: 'Statistiques et maintenance DB',
-      action: 'Voir',
+      title: "Base de Données",
+      description: "Statistiques et maintenance DB",
+      action: "Voir",
     },
     {
       icon: faBell,
-      title: 'Notifications',
-      description: 'Configuration des alertes',
-      action: 'Configurer',
+      title: "Notifications",
+      description: "Configuration des alertes",
+      action: "Configurer",
     },
     {
       icon: faCog,
-      title: 'Paramètres',
-      description: 'Configuration de l\'application',
-      action: 'Paramétrer',
+      title: "Paramètres",
+      description: "Configuration de l'application",
+      action: "Paramétrer",
     },
   ];
 
@@ -68,8 +73,7 @@ export default function AdminPage() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
+        className="mb-8">
         <h1 className="text-4xl font-bold text-gray-800 mb-2">
           🔧 Panel Administrateur
         </h1>
@@ -81,18 +85,17 @@ export default function AdminPage() {
       {/* Admin Stats */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {[
-          { label: 'Utilisateurs Actifs', value: '23' },
-          { label: 'Total Produits', value: '1,247' },
-          { label: 'Commandes ce mois', value: '156' },
-          { label: 'Revenue', value: '$12,540' },
+          { label: "Utilisateurs Actifs", value: "23" },
+          { label: "Total Produits", value: "1,247" },
+          { label: "Commandes ce mois", value: "156" },
+          { label: "Revenue", value: "$12,540" },
         ].map((stat, idx) => (
           <motion.div
             key={idx}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: idx * 0.1 }}
-            className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6"
-          >
+            className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6">
             <p className="text-gray-600 text-sm mb-2">{stat.label}</p>
             <p className="text-3xl font-bold text-blue-600">{stat.value}</p>
           </motion.div>
@@ -107,8 +110,7 @@ export default function AdminPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
-            className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow"
-          >
+            className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
             <div className="flex items-start justify-between mb-4">
               <div className="text-4xl text-blue-600">
                 <FontAwesomeIcon icon={section.icon} className="w-8 h-8" />
@@ -130,8 +132,7 @@ export default function AdminPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="mt-8 bg-white rounded-lg shadow-lg p-6"
-      >
+        className="mt-8 bg-white rounded-lg shadow-lg p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">
           📊 Informations Système
         </h2>

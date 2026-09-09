@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       { expiresIn: process.env.JWT_EXPIRATION || '7d' } as any
     );
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         token,
@@ -63,6 +63,16 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60,
+    });
+
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

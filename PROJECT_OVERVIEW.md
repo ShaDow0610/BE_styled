@@ -7,6 +7,7 @@
 ## ✨ Points Forts
 
 ### Performance
+
 - ⚡ **Turbopack** pour builds ultra-rapides
 - 🔄 **Next.js 14 App Router** avec Streaming SSR
 - 📦 **Code Splitting** automatique
@@ -14,6 +15,7 @@
 - 📊 **MongoDB** avec indexes pour requêtes rapides
 
 ### Sécurité
+
 - 🔐 **JWT Authentication** stateless
 - 🛡️ **Hachage sécurisé** des mots de passe (bcryptjs)
 - 🔒 **Middleware** de protection des routes
@@ -21,6 +23,7 @@
 - 🌐 **CORS** configuré
 
 ### Expérience Utilisateur
+
 - 🎬 **Animations fluides** au scroll et au clic
 - 📱 **Responsive Design** mobile-first
 - 🎨 **Interface moderne** avec Tailwind CSS
@@ -50,6 +53,7 @@
 ## 📚 Modèles de Données
 
 ### Product
+
 - Informations produit complètes
 - Catégories: Vêtements, Accessoires, Bijoux, Chaussures, Outfits
 - Variantes: Couleurs, Tailles
@@ -57,6 +61,7 @@
 - Ratings & Reviews
 
 ### Stock
+
 - Lié aux Produits
 - Suivi des quantités
 - Alertes minimum/maximum
@@ -64,18 +69,21 @@
 - Multi-warehouse support
 
 ### User
+
 - Rôles: Admin, Manager, Staff
 - Système de permissions
 - Authentication JWT
 - Tracking des connexions
 
 ### Outfit
+
 - Collections pré-composées
 - Season & Occasion tags
 - Prix total calculé
 - Images de présentation
 
 ### Order
+
 - Line items avec prix
 - État de la commande
 - Dates de shipping/livraison
@@ -84,6 +92,7 @@
 ## 🎨 UI/UX Design
 
 ### Composants Clés
+
 - **Navbar** - Navigation responsive avec menu mobile animé
 - **StatCard** - Cartes de statistiques avec hover effects
 - **ProductList** - Listing avec animations ScrollTrigger
@@ -91,6 +100,7 @@
 - **AnimatedElement** - Wrapper réutilisable pour animations
 
 ### Animations
+
 - **Page Load** - Hero animations au chargement
 - **Scroll Triggers** - Animations au scroll des éléments
 - **Hover Effects** - Interactions de souris fluides
@@ -99,12 +109,14 @@
 ## 🔑 Fonctionnalités Principales
 
 ### Dashboard
+
 - Vue d'ensemble avec statistiques
 - Produits récents
 - Alerts pour stock faible
 - Graphiques (à améliorer)
 
 ### Gestion des Produits
+
 - Liste complète des produits
 - Filtrage par catégorie
 - Recherche par nom/SKU
@@ -112,18 +124,21 @@
 - Upload d'images (à implémenter)
 
 ### Gestion du Stock
+
 - Suivi des quantités par variante
 - Alertes automatiques
 - Multi-warehouse
 - Historique des mouvements (à implémenter)
 
 ### Authentification
+
 - Login sécurisé
 - JWT tokens
 - Session management
 - Logout
 
 ### Admin Panel
+
 - Gestion des utilisateurs
 - Configuration système
 - Statistiques d'usage
@@ -132,12 +147,14 @@
 ## 🚀 Déploiement
 
 ### Options
+
 1. **Vercel** (Recommandé pour Next.js)
 2. **Docker** avec orchestration
 3. **Railway/Render** pour simplicité
 4. **AWS/GCP** pour scale
 
 ### Process
+
 ```bash
 1. Push code → GitHub
 2. Connecter à plateforme (Vercel/Railway/etc)
@@ -156,47 +173,52 @@
 ## 🔄 Workflow de Développement
 
 ### 1. Développement Local
+
 ```bash
 npm run dev  # Hot reload automatique
 ```
 
 ### 2. Tester
+
 ```bash
 npm run lint  # Vérifier le code
 # Tests à ajouter: Jest, Cypress
 ```
 
 ### 3. Build Production
+
 ```bash
 npm run build
 npm start
 ```
 
 ### 4. Déployer
+
 ```bash
 git push origin main  # Auto-deploy via Vercel
 ```
 
 ## 🛠️ Stack Technique Détaillé
 
-| Layer | Tech |
-|-------|------|
-| **Runtime** | Node.js 18+ |
-| **Framework** | Next.js 14 (App Router) |
-| **UI Library** | React 19 |
-| **Language** | TypeScript 5 |
-| **Styling** | Tailwind CSS 4 |
-| **Animation** | GSAP + Framer Motion |
-| **Icons** | FontAwesome 6 |
-| **API** | REST + Next.js Routes |
-| **Database** | MongoDB 7 |
-| **ORM** | Mongoose 9 |
-| **Auth** | JWT + bcryptjs |
-| **Build** | Turbopack |
+| Layer          | Tech                    |
+| -------------- | ----------------------- |
+| **Runtime**    | Node.js 18+             |
+| **Framework**  | Next.js 14 (App Router) |
+| **UI Library** | React 19                |
+| **Language**   | TypeScript 5            |
+| **Styling**    | Tailwind CSS 4          |
+| **Animation**  | GSAP + Framer Motion    |
+| **Icons**      | FontAwesome 6           |
+| **API**        | REST + Next.js Routes   |
+| **Database**   | MongoDB 7               |
+| **ORM**        | Mongoose 9              |
+| **Auth**       | JWT + bcryptjs          |
+| **Build**      | Turbopack               |
 
 ## 📈 Roadmap
 
 ### Phase 1 ✅ (Fait)
+
 - ✓ Authentification JWT
 - ✓ CRUD Produits
 - ✓ Gestion Stock
@@ -205,6 +227,7 @@ git push origin main  # Auto-deploy via Vercel
 - ✓ Responsive Design
 
 ### Phase 2 (À faire)
+
 - [ ] Upload images vers Cloud (AWS S3/Cloudinary)
 - [ ] Export rapports PDF
 - [ ] Bulk import CSV
@@ -213,6 +236,7 @@ git push origin main  # Auto-deploy via Vercel
 - [ ] Notifications email
 
 ### Phase 3 (Futur)
+
 - [ ] Intégration paiements (Stripe)
 - [ ] POS system
 - [ ] Prédictions IA des ventes
@@ -236,6 +260,7 @@ git push origin main  # Auto-deploy via Vercel
 ## 🤝 Contribution
 
 Pour améliorer Zephyr:
+
 1. Fork le repo
 2. Créer une branche feature
 3. Commit les changements
@@ -244,6 +269,7 @@ Pour améliorer Zephyr:
 ## 📞 Support
 
 Pour les questions ou problèmes:
+
 - 📧 Email: support@zephyr.com
 - 🐛 Issues: GitHub Issues
 - 💬 Discussions: GitHub Discussions

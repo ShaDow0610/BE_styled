@@ -3,11 +3,15 @@
  * Usage: npx ts-node scripts/init-db.ts
  */
 
+import * as dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import bcryptjs from 'bcryptjs';
 import User from '../src/lib/models/User';
 import Product from '../src/lib/models/Product';
 import Stock from '../src/lib/models/Stock';
+
+// Charger les variables d'environnement
+dotenv.config({ path: '.env.local' });
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/zephyr-boutique';
 

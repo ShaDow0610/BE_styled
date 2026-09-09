@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import StatCard from '@/components/dashboard/StatCard';
-import ProductList from '@/components/dashboard/ProductList';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBox, faChartLine, faCubes } from '@fortawesome/free-solid-svg-icons';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import StatCard from "@/components/dashboard/StatCard";
+import ProductList from "@/components/dashboard/ProductList";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBox, faChartLine, faCubes } from "@fortawesome/free-solid-svg-icons";
 
 interface Product {
   _id: string;
@@ -36,9 +36,9 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (!token) {
-      router.push('/login');
+      router.push("/login");
       return;
     }
 
@@ -48,9 +48,9 @@ export default function DashboardPage() {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      
+
       // Récupérer les produits
-      const productsRes = await fetch('/api/products?limit=10');
+      const productsRes = await fetch("/api/products?limit=10");
       if (productsRes.ok) {
         const data = await productsRes.json();
         setProducts(data.data);
@@ -58,9 +58,9 @@ export default function DashboardPage() {
         // Calculer les stats
         const totalValue = data.data.reduce(
           (sum: number, p: Product) => sum + p.price,
-          0
+          0,
         );
-        
+
         setStats({
           totalProducts: data.pagination?.total || data.data.length,
           totalValue: Math.round(totalValue),
@@ -69,16 +69,17 @@ export default function DashboardPage() {
         });
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error("Error fetching data:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.push('/');
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    router.push("/");
   };
 
   if (isLoading) {
@@ -95,13 +96,11 @@ export default function DashboardPage() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex justify-between items-center mb-8"
-      >
+        className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
         <button
           onClick={handleLogout}
-          className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-        >
+          className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
           Se déconnecter
         </button>
       </motion.div>
@@ -142,8 +141,7 @@ export default function DashboardPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-white rounded-lg shadow-lg p-6"
-      >
+        className="bg-white rounded-lg shadow-lg p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-6">
           Produits Récents
         </h2>
