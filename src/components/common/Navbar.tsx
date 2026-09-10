@@ -13,6 +13,7 @@ import {
   faShirt,
   faTruck,
   faArrowUpRightFromSquare,
+  faChartPie,
 } from "@fortawesome/free-solid-svg-icons";
 
 export const Navbar = () => {
@@ -43,6 +44,7 @@ export const Navbar = () => {
     { href: "/products", label: "Produits", icon: faBox },
     { href: "/looks", label: "Looks", icon: faShirt },
     { href: "/orders", label: "Commandes", icon: faTruck },
+    { href: "/reports", label: "Rapports", icon: faChartPie },
     { href: "/admin", label: "Admin", icon: faCog },
   ];
 

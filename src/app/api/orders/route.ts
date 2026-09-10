@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import OrderTracking from '@/lib/models/OrderTracking';
+import Payment from '@/lib/models/Payment';
+import ProductPricing from '@/lib/models/ProductPricing';
 import { canWrite, getRole } from '@/lib/authz';
 
 export async function GET() {
@@ -15,7 +17,36 @@ export async function GET() {
       })
       .lean();
 
-    return NextResponse.json({ success: true, data: orders });
+    const clientOrderIds = orders
+      .filter((o) => o.type === 'commande_client')
+      .map((o) => o._id);
+
+    const [paymentsByOrder, latestPricingByProduct] = await Promise.all([
+      Payment.aggregate([
+        { $match: { order_tracking_id: { $in: clientOrderIds } } },
+        { $group: { _id: '$order_tracking_id', total: { $sum: '$montant' } } },
+      ]),
+      ProductPricing.aggregate([
+        { $sort: { date_effet: -1 } },
+        { $group: { _id: '$product_id', prix_revente_final: { $first: '$prix_revente_final' } } },
+      ]),
+    ]);
+
+    const paymentsMap = new Map(paymentsByOrder.map((p) => [p._id.toString(), p.total]));
+    const priceMap = new Map(latestPricingByProduct.map((p) => [p._id.toString(), p.prix_revente_final]));
+
+    const data = orders.map((o) => {
+      if (o.type !== 'commande_client') return o;
+
+      const productId = (o.product_variant_id as any)?.product_id?._id?.toString();
+      const prix = productId ? priceMap.get(productId) : undefined;
+      const montant_total = prix != null ? Math.round(prix * o.quantite * 100) / 100 : null;
+      const montant_encaisse = Math.round((paymentsMap.get(o._id.toString()) ?? 0) * 100) / 100;
+
+      return { ...o, montant_total, montant_encaisse };
+    });
+
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching orders:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch orders' }, { status: 500 });

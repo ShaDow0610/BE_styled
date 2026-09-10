@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useUserRole } from "@/lib/useUserRole";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -33,6 +34,7 @@ const STATUT_LABELS: Record<string, string> = {
 };
 
 export const ProductList: React.FC<ProductListProps> = ({ products }) => {
+  const { canSeeFinancials } = useUserRole();
   const listRef = useRef<HTMLDivElement>(null);
   const itemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
 
@@ -85,7 +87,7 @@ export const ProductList: React.FC<ProductListProps> = ({ products }) => {
             </div>
 
             <div className="flex items-center gap-4">
-              {product.prix_actuel != null && (
+              {canSeeFinancials && product.prix_actuel != null && (
                 <p className="text-xl font-bold text-ink">${product.prix_actuel}</p>
               )}
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-ivory-soft text-ink-soft">

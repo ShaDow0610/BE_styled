@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUserRole } from "@/lib/useUserRole";
+import { useToast } from "@/components/common/ToastProvider";
 
 const CATEGORIES = [
   "pantalon", "chemise", "tricot", "culotte", "bracelet",
@@ -83,7 +84,7 @@ export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { canWrite } = useUserRole();
+  const { canWrite, canSeeFinancials } = useUserRole();
 
   const [tab, setTab] = useState<Tab>("infos");
   const [product, setProduct] = useState<Product | null>(null);
@@ -167,7 +168,7 @@ export default function ProductDetailPage() {
       </div>
 
       <div className="flex gap-2 border-b border-silver-soft mb-6">
-        {TABS.map((t) => (
+        {TABS.filter((t) => t.key !== "prix" || canSeeFinancials).map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
@@ -184,7 +185,7 @@ export default function ProductDetailPage() {
       {tab === "infos" && (
         <InfosTab product={product} brands={brands} suppliers={suppliers} onSaved={load} canWrite={canWrite} />
       )}
-      {tab === "prix" && (
+      {tab === "prix" && canSeeFinancials && (
         <PrixTab productId={id} history={pricingHistory} onSaved={load} canWrite={canWrite} />
       )}
       {tab === "variantes" && (
@@ -210,6 +211,7 @@ function InfosTab({
   onSaved: () => void;
   canWrite: boolean;
 }) {
+  const toast = useToast();
   const [form, setForm] = useState({
     nom: product.nom,
     categorie: product.categorie,
@@ -239,9 +241,12 @@ function InfosTab({
         }),
       });
       if (!res.ok) throw new Error("Échec de la sauvegarde");
+      toast.success("Informations enregistrées");
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -375,6 +380,7 @@ function PrixTab({
   onSaved: () => void;
   canWrite: boolean;
 }) {
+  const toast = useToast();
   const [form, setForm] = useState(PRICING_FORM_DEFAULTS);
   const [preview, setPreview] = useState<{ prix_revient_total: number; prix_revente_final: number } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -445,9 +451,12 @@ function PrixTab({
       });
       if (!res.ok) throw new Error("Échec de l'enregistrement du prix");
       setForm(PRICING_FORM_DEFAULTS);
+      toast.success("Prix enregistré");
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -634,6 +643,7 @@ function VariantesTab({
   onSaved: () => void;
   canWrite: boolean;
 }) {
+  const toast = useToast();
   const [form, setForm] = useState(VARIANT_FORM_DEFAULTS);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -654,9 +664,12 @@ function VariantesTab({
       });
       if (!res.ok) throw new Error("Échec de la création de la variante");
       setForm(VARIANT_FORM_DEFAULTS);
+      toast.success("Variante ajoutée");
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -664,6 +677,7 @@ function VariantesTab({
 
   const handleDelete = async (variantId: string) => {
     await fetch(`/api/products/${productId}/variants/${variantId}`, { method: "DELETE" });
+    toast.success("Variante supprimée");
     onSaved();
   };
 
@@ -764,6 +778,7 @@ function ImagesTab({
   onSaved: () => void;
   canWrite: boolean;
 }) {
+  const toast = useToast();
   const [form, setForm] = useState(IMAGE_FORM_DEFAULTS);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -780,9 +795,12 @@ function ImagesTab({
       });
       if (!res.ok) throw new Error("Échec de l'ajout de l'image");
       setForm(IMAGE_FORM_DEFAULTS);
+      toast.success("Image ajoutée");
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue");
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -790,6 +808,7 @@ function ImagesTab({
 
   const handleDelete = async (imageId: string) => {
     await fetch(`/api/products/${productId}/images?imageId=${imageId}`, { method: "DELETE" });
+    toast.success("Image supprimée");
     onSaved();
   };
 

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/common/ToastProvider";
+import { useUserRole } from "@/lib/useUserRole";
 
 interface ProductOption {
   _id: string;
@@ -20,6 +22,8 @@ interface OrderEntry {
   type: "reappro_fournisseur" | "commande_client";
   statut: string;
   quantite: number;
+  montant_total?: number | null;
+  montant_encaisse?: number;
   product_variant_id: {
     sku_variante: string;
     taille: string;
@@ -44,6 +48,8 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function OrdersPage() {
   const router = useRouter();
+  const toast = useToast();
+  const { canSeeFinancials } = useUserRole();
   const [orders, setOrders] = useState<OrderEntry[]>([]);
   const [canWrite, setCanWrite] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,6 +62,7 @@ export default function OrdersPage() {
   const [quantite, setQuantite] = useState("1");
   const [error, setError] = useState("");
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const draggedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -114,12 +121,14 @@ export default function OrdersPage() {
     const data = await res.json();
     if (!res.ok || !data.success) {
       setError(data.error || "Erreur lors de la création");
+      toast.error(data.error || "Erreur lors de la création");
       return;
     }
     setSelectedProduct("");
     setSelectedVariant("");
     setQuantite("1");
     setShowForm(false);
+    toast.success("Entrée créée");
     load();
   };
 
@@ -150,6 +159,16 @@ export default function OrdersPage() {
             Nouvelle entrée
           </button>
         )}
+      </div>
+
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Rechercher par produit ou SKU..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full max-w-md px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink bg-white"
+        />
       </div>
 
       {showForm && (
@@ -227,6 +246,14 @@ export default function OrdersPage() {
               <div className="space-y-2">
                 {orders
                   .filter((o) => o.statut === col.key)
+                  .filter((o) => {
+                    if (!searchTerm) return true;
+                    const term = searchTerm.toLowerCase();
+                    return (
+                      o.product_variant_id?.product_id?.nom?.toLowerCase().includes(term) ||
+                      o.product_variant_id?.sku_variante?.toLowerCase().includes(term)
+                    );
+                  })
                   .map((o) => (
                     <div
                       key={o._id}
@@ -258,12 +285,139 @@ export default function OrdersPage() {
                           ))}
                         </select>
                       )}
+                      {o.type === "commande_client" && canSeeFinancials && (
+                        <PaymentSection
+                          order={o}
+                          canWrite={canWrite}
+                          onPaid={load}
+                        />
+                      )}
                     </div>
                   ))}
               </div>
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+const MODE_LABELS: Record<string, string> = {
+  especes: "Espèces",
+  mobile_money: "Mobile money",
+  virement: "Virement",
+  autre: "Autre",
+};
+
+function PaymentSection({
+  order,
+  canWrite,
+  onPaid,
+}: {
+  order: OrderEntry;
+  canWrite: boolean;
+  onPaid: () => void;
+}) {
+  const toast = useToast();
+  const [showForm, setShowForm] = useState(false);
+  const [montant, setMontant] = useState("");
+  const [mode, setMode] = useState("especes");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const total = order.montant_total ?? 0;
+  const encaisse = order.montant_encaisse ?? 0;
+  const reste = Math.max(0, total - encaisse);
+  const pct = total > 0 ? Math.min(100, Math.round((encaisse / total) * 100)) : 0;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const value = Number(montant);
+    if (!value || value <= 0) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/orders/${order._id}/payments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ montant: value, mode_paiement: mode }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        toast.error(data.error || "Erreur lors de l'enregistrement du paiement");
+        return;
+      }
+      toast.success("Paiement enregistré");
+      setMontant("");
+      setShowForm(false);
+      onPaid();
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-2 pt-2 border-t border-silver-soft/60" onClick={(e) => e.stopPropagation()}>
+      {order.montant_total != null ? (
+        <>
+          <div className="flex justify-between text-[10px] text-ink-soft/70 mb-1">
+            <span>Encaissé ${encaisse.toLocaleString()} / ${total.toLocaleString()}</span>
+            {reste > 0 && <span className="text-amber-600">Reste ${reste.toLocaleString()}</span>}
+          </div>
+          <div className="w-full h-1.5 bg-ivory-soft rounded-full overflow-hidden">
+            <div
+              className={`h-full ${pct >= 100 ? "bg-emerald-600" : "bg-ink"}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </>
+      ) : (
+        <p className="text-[10px] text-ink-soft/50">Prix non défini pour ce produit</p>
+      )}
+
+      {canWrite && (
+        <>
+          {!showForm ? (
+            <button
+              onClick={() => setShowForm(true)}
+              className="mt-2 text-[11px] text-ink underline hover:no-underline">
+              + Paiement
+            </button>
+          ) : (
+            <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-1.5">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Montant"
+                value={montant}
+                onChange={(e) => setMontant(e.target.value)}
+                className="w-full text-[11px] px-2 py-1 border border-silver-soft rounded"
+              />
+              <select
+                value={mode}
+                onChange={(e) => setMode(e.target.value)}
+                className="w-full text-[11px] px-2 py-1 border border-silver-soft rounded">
+                {Object.entries(MODE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="flex-1 text-[11px] px-2 py-1 bg-ink text-ivory rounded disabled:opacity-50">
+                  Valider
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="flex-1 text-[11px] px-2 py-1 border border-silver-soft text-ink-soft rounded">
+                  Annuler
+                </button>
+              </div>
+            </form>
+          )}
+        </>
       )}
     </div>
   );

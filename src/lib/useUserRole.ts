@@ -16,5 +16,8 @@ export function useUserRole() {
     role,
     canWrite: role === "admin" || role === "gestion_stock",
     isAdmin: role === "admin",
+    // lecture_seule ne voit aucun montant financier nulle part dans l'app.
+    // Défaut sûr (false) tant que le rôle n'est pas encore chargé.
+    canSeeFinancials: role !== null && role !== "lecture_seule",
   };
 }

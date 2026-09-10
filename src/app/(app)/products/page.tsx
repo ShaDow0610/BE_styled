@@ -7,6 +7,7 @@ import ProductList, { ProductListItem } from "@/components/dashboard/ProductList
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus, faSearch } from "@fortawesome/free-solid-svg-icons";
 import { useUserRole } from "@/lib/useUserRole";
+import { useToast } from "@/components/common/ToastProvider";
 
 const CATEGORIES = [
   "pantalon",
@@ -44,6 +45,7 @@ const EMPTY_FORM = {
 export default function ProductsPage() {
   const router = useRouter();
   const { canWrite } = useUserRole();
+  const toast = useToast();
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [selectedOrigine, setSelectedOrigine] = useState("");
   const [selectedCategorie, setSelectedCategorie] = useState("");
@@ -101,9 +103,12 @@ export default function ProductsPage() {
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Erreur lors de la création du produit");
       }
+      toast.success("Produit créé");
       router.push(`/products/${data.data._id}`);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Erreur inconnue");
+      const message = error instanceof Error ? error.message : "Erreur inconnue";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }

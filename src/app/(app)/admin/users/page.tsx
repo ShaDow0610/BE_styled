@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/components/common/ToastProvider";
 
 interface UserRow {
   _id: string;
@@ -29,6 +30,7 @@ const ROLE_LABELS: Record<UserRow["role"], string> = {
 
 export default function UsersPage() {
   const router = useRouter();
+  const toast = useToast();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
@@ -36,6 +38,7 @@ export default function UsersPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -75,10 +78,12 @@ export default function UsersPage() {
     const data = await res.json();
     if (!res.ok || !data.success) {
       setError(data.error || "Erreur lors de la création");
+      toast.error(data.error || "Erreur lors de la création");
       return;
     }
     setForm(EMPTY_FORM);
     setShowForm(false);
+    toast.success("Utilisateur créé");
     load();
   };
 
@@ -88,8 +93,15 @@ export default function UsersPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(update),
     });
+    toast.success("Utilisateur mis à jour");
     load();
   };
+
+  const filteredUsers = users.filter(
+    (u) =>
+      `${u.firstName} ${u.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (isChecking || !isAdmin) {
     return (
@@ -155,6 +167,16 @@ export default function UsersPage() {
         </form>
       )}
 
+      <div className="mb-4 max-w-md">
+        <input
+          type="text"
+          placeholder="Rechercher un utilisateur..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+        />
+      </div>
+
       <div className="bg-white rounded-lg shadow p-6">
         {isLoading ? (
           <div className="flex justify-center py-8">
@@ -172,7 +194,7 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {filteredUsers.map((u) => (
                 <tr key={u._id} className="border-b border-silver-soft/50">
                   <td className="py-2 pr-4 text-ink font-medium">{u.firstName} {u.lastName}</td>
                   <td className="py-2 pr-4 text-ink-soft">{u.email}</td>

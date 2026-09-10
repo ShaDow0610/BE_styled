@@ -30,15 +30,15 @@ const CATEGORIES: { key: string; icon: IconDefinition }[] = [
   { key: "autre", icon: faTags },
 ];
 
-type SearchParams = Promise<{ categorie?: string; couleur?: string; taille?: string }>;
+type SearchParams = Promise<{ categorie?: string; couleur?: string; taille?: string; q?: string }>;
 
 export default async function CataloguePage({ searchParams }: { searchParams: SearchParams }) {
-  const { categorie, couleur, taille } = await searchParams;
+  const { categorie, couleur, taille, q } = await searchParams;
 
-  const products = await getPublicProducts({ categorie, couleur, taille, limit: 100 });
+  const products = await getPublicProducts({ categorie, couleur, taille, q, limit: 100 });
 
   const buildLink = (params: Record<string, string | undefined>) => {
-    const merged = { categorie, couleur, taille, ...params };
+    const merged = { categorie, couleur, taille, q, ...params };
     const query = new URLSearchParams();
     Object.entries(merged).forEach(([k, v]) => {
       if (v) query.set(k, v);
@@ -50,6 +50,19 @@ export default async function CataloguePage({ searchParams }: { searchParams: Se
   return (
     <div className="container mx-auto px-4 py-12">
       <h1 className="font-serif text-4xl text-ink mb-8">Catalogue</h1>
+
+      <form action="/boutique/catalogue" method="get" className="mb-6 max-w-md">
+        {categorie && <input type="hidden" name="categorie" value={categorie} />}
+        {couleur && <input type="hidden" name="couleur" value={couleur} />}
+        {taille && <input type="hidden" name="taille" value={taille} />}
+        <input
+          type="text"
+          name="q"
+          defaultValue={q}
+          placeholder="Rechercher un produit..."
+          className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink bg-white"
+        />
+      </form>
 
       <div className="flex flex-wrap gap-3 mb-8">
         <Link

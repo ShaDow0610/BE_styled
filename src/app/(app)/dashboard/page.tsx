@@ -4,7 +4,19 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 import StatCard from "@/components/dashboard/StatCard";
+import { useUserRole } from "@/lib/useUserRole";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBox,
@@ -12,6 +24,7 @@ import {
   faTriangleExclamation,
   faTruck,
   faCartShopping,
+  faCircleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface MargeParCategorie {
@@ -58,6 +71,17 @@ interface Ventes30j {
   nombreVentes: number;
   chiffreAffaires: number;
   meilleuresVentes: { nom: string; quantite: number }[];
+  parJour: { date: string; ca: number }[];
+  previsionCA30jSuivants: number;
+  encaissements30j: number;
+  resteAPayer: number;
+}
+
+interface PointAttention {
+  type: string;
+  message: string;
+  lien: string;
+  severite: "critique" | "attention";
 }
 
 interface DashboardStats {
@@ -70,6 +94,7 @@ interface DashboardStats {
   repartitionOrigine: RepartitionOrigine[];
   valeurParStatut: ValeurParStatut[];
   ventes30j: Ventes30j;
+  pointsAttention: PointAttention[];
 }
 
 const EMPTY_STATS: DashboardStats = {
@@ -81,7 +106,8 @@ const EMPTY_STATS: DashboardStats = {
   repartitionFournisseurs: [],
   repartitionOrigine: [],
   valeurParStatut: [],
-  ventes30j: { nombreVentes: 0, chiffreAffaires: 0, meilleuresVentes: [] },
+  ventes30j: { nombreVentes: 0, chiffreAffaires: 0, meilleuresVentes: [], parJour: [], previsionCA30jSuivants: 0, encaissements30j: 0, resteAPayer: 0 },
+  pointsAttention: [],
 };
 
 const STATUT_LABELS: Record<string, string> = {
@@ -96,6 +122,7 @@ const STATUT_LABELS: Record<string, string> = {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { canSeeFinancials } = useUserRole();
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [isLoading, setIsLoading] = useState(true);
   const [creatingReappro, setCreatingReappro] = useState<string | null>(null);
@@ -160,6 +187,7 @@ export default function DashboardPage() {
   }
 
   const valeurImmobilisee = stats.valeurParStatut.filter((v) => v.statut !== "disponible");
+  const montant = (n: number) => (canSeeFinancials ? `$${n.toLocaleString()}` : "—");
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -179,70 +207,74 @@ export default function DashboardPage() {
       {/* Stats Cards — cliquables */}
       <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <Link href="/products">
-          <StatCard
-            title="Total Produits"
-            value={stats.totalProduits}
-            icon={<FontAwesomeIcon icon={faBox} />}
-            color="bg-ink"
-          />
+          <StatCard title="Total Produits" value={stats.totalProduits} icon={<FontAwesomeIcon icon={faBox} />} color="bg-ink" />
         </Link>
         <a href="#repartition">
-          <StatCard
-            title="Valeur du Stock"
-            value={`$${stats.valeurTotaleStock.toLocaleString()}`}
-            icon={<FontAwesomeIcon icon={faChartLine} />}
-            color="bg-ink-soft"
-          />
+          <StatCard title="Valeur du Stock" value={montant(stats.valeurTotaleStock)} icon={<FontAwesomeIcon icon={faChartLine} />} color="bg-ink-soft" />
         </a>
         <a href="#alertes">
           <StatCard
             title="Alertes Rupture"
             value={stats.alertesRupture.length}
             icon={<FontAwesomeIcon icon={faTriangleExclamation} />}
-            color="bg-ink-soft"
+            color={stats.alertesRupture.length > 0 ? "bg-red-600" : "bg-ink-soft"}
           />
         </a>
         <a href="#transit">
-          <StatCard
-            title="Produits en Transit"
-            value={stats.produitsEnTransit.length}
-            icon={<FontAwesomeIcon icon={faTruck} />}
-            color="bg-ink"
-          />
+          <StatCard title="Produits en Transit" value={stats.produitsEnTransit.length} icon={<FontAwesomeIcon icon={faTruck} />} color="bg-ink" />
         </a>
         <a href="#ventes">
-          <StatCard
-            title="Ventes (30j)"
-            value={`$${stats.ventes30j.chiffreAffaires.toLocaleString()}`}
-            icon={<FontAwesomeIcon icon={faCartShopping} />}
-            color="bg-ink-soft"
-          />
+          <StatCard title="Ventes (30j)" value={montant(stats.ventes30j.chiffreAffaires)} icon={<FontAwesomeIcon icon={faCartShopping} />} color="bg-ink-soft" />
         </a>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Marge moyenne par catégorie */}
+      {/* Points d'attention */}
+      {stats.pointsAttention.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="font-serif text-xl text-ink mb-4">
-            Marge moyenne par catégorie
-          </h2>
-          {stats.margeMoyenneParCategorie.length > 0 ? (
-            <ul className="divide-y divide-silver-soft">
-              {stats.margeMoyenneParCategorie.map((m) => (
-                <li key={m.categorie} className="flex justify-between py-2 text-sm">
-                  <span className="capitalize text-ink-soft">{m.categorie}</span>
-                  <span className="font-semibold text-ink">{m.marge_moyenne}%</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-ink-soft/70 text-sm py-4">Aucune donnée de prix pour le moment.</p>
-          )}
+          className="bg-white rounded-lg shadow-lg p-6 mb-6 border-l-4 border-amber-500">
+          <h2 className="font-serif text-xl text-ink mb-4">Points d'attention</h2>
+          <ul className="space-y-2">
+            {stats.pointsAttention.map((p, idx) => (
+              <li key={idx} className="flex items-center gap-3 text-sm">
+                <FontAwesomeIcon
+                  icon={faCircleExclamation}
+                  className={`w-4 h-4 shrink-0 ${p.severite === "critique" ? "text-red-600" : "text-amber-500"}`}
+                />
+                <Link href={p.lien} className="text-ink-soft hover:text-ink truncate">
+                  {p.message}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </motion.div>
+      )}
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Marge moyenne par catégorie */}
+        {canSeeFinancials && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="font-serif text-xl text-ink mb-4">Marge moyenne par catégorie</h2>
+            {stats.margeMoyenneParCategorie.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={stats.margeMoyenneParCategorie}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
+                  <XAxis dataKey="categorie" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} unit="%" />
+                  <Tooltip />
+                  <Bar dataKey="marge_moyenne" fill="#0b0b0c" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-ink-soft/70 text-sm py-4">Aucune donnée de prix pour le moment.</p>
+            )}
+          </motion.div>
+        )}
 
         {/* Alertes rupture — actionnables */}
         <motion.div
@@ -258,9 +290,8 @@ export default function DashboardPage() {
                 <li key={a._id} className="py-3 text-sm flex justify-between items-center gap-3">
                   <Link href={`/products/${a.product_id}`} className="flex-1 min-w-0">
                     <p className="font-medium text-ink truncate">{a.product?.nom}</p>
-                    <p className="text-ink-soft/70">
-                      {a.sku_variante} · {a.taille}/{a.couleur} — {a.stock_quantite} en stock
-                      (seuil {a.seuil_alerte})
+                    <p className="text-red-600/80">
+                      {a.sku_variante} · {a.taille}/{a.couleur} — {a.stock_quantite} en stock (seuil {a.seuil_alerte})
                     </p>
                   </Link>
                   <button
@@ -283,13 +314,41 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="bg-white rounded-lg shadow-lg p-6 scroll-mt-6">
+          className="bg-white rounded-lg shadow-lg p-6 scroll-mt-6 lg:col-span-2">
           <h2 className="font-serif text-xl text-ink mb-1">Ventes (30 derniers jours)</h2>
           <p className="text-ink-soft/60 text-xs mb-4">
-            CA estimé au prix de revente actuel — {stats.ventes30j.nombreVentes} vente(s)
+            {stats.ventes30j.nombreVentes} vente(s)
+            {canSeeFinancials && (
+              <> · CA estimé au prix de revente actuel · prévision 30j suivants : {montant(stats.ventes30j.previsionCA30jSuivants)} (estimation basée sur peu d'historique)</>
+            )}
           </p>
+          {canSeeFinancials && stats.ventes30j.parJour.length > 1 && (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={stats.ventes30j.parJour}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="ca" stroke="#0b0b0c" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+          {canSeeFinancials && (
+            <div className="grid sm:grid-cols-2 gap-4 mt-4 mb-4">
+              <div className="bg-ivory-soft rounded-lg p-4">
+                <p className="text-xs text-ink-soft/70">Encaissé (30j)</p>
+                <p className="text-xl font-bold text-ink">{montant(stats.ventes30j.encaissements30j)}</p>
+              </div>
+              <div className={`rounded-lg p-4 ${stats.ventes30j.resteAPayer > 0 ? "bg-amber-50" : "bg-ivory-soft"}`}>
+                <p className="text-xs text-ink-soft/70">Reste à payer (commandes clients)</p>
+                <p className={`text-xl font-bold ${stats.ventes30j.resteAPayer > 0 ? "text-amber-600" : "text-ink"}`}>
+                  {montant(stats.ventes30j.resteAPayer)}
+                </p>
+              </div>
+            </div>
+          )}
           {stats.ventes30j.meilleuresVentes.length > 0 ? (
-            <ul className="divide-y divide-silver-soft">
+            <ul className="divide-y divide-silver-soft mt-4">
               {stats.ventes30j.meilleuresVentes.map((v) => (
                 <li key={v.nom} className="flex justify-between py-2 text-sm">
                   <span className="text-ink-soft">{v.nom}</span>
@@ -306,69 +365,73 @@ export default function DashboardPage() {
         </motion.div>
 
         {/* Répartition fournisseurs / origine */}
-        <motion.div
-          id="repartition"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-lg shadow-lg p-6 scroll-mt-6">
-          <h2 className="font-serif text-xl text-ink mb-4">Répartition du stock</h2>
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div>
-              <p className="text-xs font-semibold text-ink-soft/70 uppercase mb-2">Par fournisseur</p>
-              {stats.repartitionFournisseurs.length > 0 ? (
-                <ul className="space-y-2">
-                  {stats.repartitionFournisseurs.map((f) => (
-                    <li key={f.nom} className="text-sm flex justify-between">
-                      <span className="text-ink-soft">{f.nom}</span>
-                      <span className="font-semibold text-ink">${f.valeur.toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-ink-soft/70 text-sm">Aucune donnée.</p>
-              )}
+        {canSeeFinancials && (
+          <motion.div
+            id="repartition"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-lg shadow-lg p-6 scroll-mt-6">
+            <h2 className="font-serif text-xl text-ink mb-4">Répartition du stock</h2>
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs font-semibold text-ink-soft/70 uppercase mb-2">Par fournisseur</p>
+                {stats.repartitionFournisseurs.length > 0 ? (
+                  <ul className="space-y-2">
+                    {stats.repartitionFournisseurs.map((f) => (
+                      <li key={f.nom} className="text-sm flex justify-between">
+                        <span className="text-ink-soft">{f.nom}</span>
+                        <span className="font-semibold text-ink">{montant(f.valeur)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-ink-soft/70 text-sm">Aucune donnée.</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-ink-soft/70 uppercase mb-2">Par origine</p>
+                {stats.repartitionOrigine.length > 0 ? (
+                  <ul className="space-y-2">
+                    {stats.repartitionOrigine.map((o) => (
+                      <li key={o.origine} className="text-sm flex justify-between">
+                        <span className="text-ink-soft">
+                          {o.origine === "import_chine" ? "Import Chine" : "Local"} ({o.count})
+                        </span>
+                        <span className="font-semibold text-ink">{montant(o.valeur)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-ink-soft/70 text-sm">Aucune donnée.</p>
+                )}
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-semibold text-ink-soft/70 uppercase mb-2">Par origine</p>
-              {stats.repartitionOrigine.length > 0 ? (
-                <ul className="space-y-2">
-                  {stats.repartitionOrigine.map((o) => (
-                    <li key={o.origine} className="text-sm flex justify-between">
-                      <span className="text-ink-soft">
-                        {o.origine === "import_chine" ? "Import Chine" : "Local"} ({o.count})
-                      </span>
-                      <span className="font-semibold text-ink">${o.valeur.toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-ink-soft/70 text-sm">Aucune donnée.</p>
-              )}
-            </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
 
         {/* Valeur immobilisée par statut */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="font-serif text-xl text-ink mb-4">Valeur immobilisée</h2>
-          {valeurImmobilisee.length > 0 ? (
-            <ul className="divide-y divide-silver-soft">
-              {valeurImmobilisee.map((v) => (
-                <li key={v.statut} className="flex justify-between py-2 text-sm">
-                  <span className="text-ink-soft">{STATUT_LABELS[v.statut] ?? v.statut}</span>
-                  <span className="font-semibold text-ink">${v.valeur.toLocaleString()}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-ink-soft/70 text-sm py-4">Tout le stock est disponible à la vente.</p>
-          )}
-        </motion.div>
+        {canSeeFinancials && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="font-serif text-xl text-ink mb-4">Valeur immobilisée</h2>
+            {valeurImmobilisee.length > 0 ? (
+              <ul className="divide-y divide-silver-soft">
+                {valeurImmobilisee.map((v) => (
+                  <li key={v.statut} className="flex justify-between py-2 text-sm">
+                    <span className="text-ink-soft">{STATUT_LABELS[v.statut] ?? v.statut}</span>
+                    <span className="font-semibold text-ink">{montant(v.valeur)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-ink-soft/70 text-sm py-4">Tout le stock est disponible à la vente.</p>
+            )}
+          </motion.div>
+        )}
 
         {/* Produits en transit */}
         <motion.div

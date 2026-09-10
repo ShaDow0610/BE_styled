@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/components/common/ToastProvider";
 
 interface Brand {
   _id: string;
@@ -16,12 +17,14 @@ const EMPTY_FORM = { nom: "", categorie_accessoire: "", contact: "", conditions_
 
 export default function BrandsPage() {
   const router = useRouter();
+  const toast = useToast();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [canWrite, setCanWrite] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -58,17 +61,22 @@ export default function BrandsPage() {
     const data = await res.json();
     if (!res.ok || !data.success) {
       setError(data.error || "Erreur lors de la création");
+      toast.error(data.error || "Erreur lors de la création");
       return;
     }
     setForm(EMPTY_FORM);
     setShowForm(false);
+    toast.success("Marque créée");
     load();
   };
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/brands/${id}`, { method: "DELETE" });
+    toast.success("Marque supprimée");
     load();
   };
+
+  const filteredBrands = brands.filter((b) => b.nom.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -122,13 +130,23 @@ export default function BrandsPage() {
         </form>
       )}
 
+      <div className="mb-4 max-w-md">
+        <input
+          type="text"
+          placeholder="Rechercher une marque..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+        />
+      </div>
+
       <div className="bg-white rounded-lg shadow p-6">
         {isLoading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-ink"></div>
           </div>
-        ) : brands.length === 0 ? (
-          <p className="text-ink-soft/70 text-sm">Aucune marque pour le moment.</p>
+        ) : filteredBrands.length === 0 ? (
+          <p className="text-ink-soft/70 text-sm">Aucune marque trouvée.</p>
         ) : (
           <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -141,7 +159,7 @@ export default function BrandsPage() {
               </tr>
             </thead>
             <tbody>
-              {brands.map((b) => (
+              {filteredBrands.map((b) => (
                 <tr key={b._id} className="border-b border-silver-soft/50">
                   <td className="py-2 pr-4 text-ink font-medium">{b.nom}</td>
                   <td className="py-2 pr-4 text-ink-soft">{b.categorie_accessoire || "—"}</td>

@@ -5,12 +5,15 @@ import ProductVariant from '@/lib/models/ProductVariant';
 import ProductPricing from '@/lib/models/ProductPricing';
 import Supplier from '@/lib/models/Supplier';
 import OrderTracking from '@/lib/models/OrderTracking';
+import ProductImage from '@/lib/models/ProductImage';
+import Payment from '@/lib/models/Payment';
 
 export async function GET() {
   try {
     await dbConnect();
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
     const [
       latestPricingByProduct,
@@ -21,6 +24,11 @@ export async function GET() {
       allProducts,
       suppliers,
       recentSales,
+      imagesCountByProduct,
+      stuckOrders,
+      allClientOrders,
+      paymentsByOrder,
+      encaissements30jAgg,
     ] = await Promise.all([
       ProductPricing.aggregate([
         { $sort: { date_effet: -1 } },
@@ -61,11 +69,25 @@ export async function GET() {
       ]),
       Product.find({ statut: 'en_transit' }).select('nom reference categorie').limit(20).lean(),
       Product.countDocuments(),
-      Product.find().select('categorie statut origine fournisseur_id').lean(),
+      Product.find().select('nom categorie statut origine fournisseur_id').lean(),
       Supplier.find().select('nom').lean(),
       OrderTracking.find({ type: 'commande_client', statut: 'livre_client', date_maj: { $gte: thirtyDaysAgo } })
         .populate({ path: 'product_variant_id', select: 'product_id', populate: { path: 'product_id', select: 'nom' } })
         .lean(),
+      ProductImage.aggregate([{ $group: { _id: '$product_id', count: { $sum: 1 } } }]),
+      OrderTracking.find({ stock_applique: false, date_maj: { $lt: fourteenDaysAgo } })
+        .populate({ path: 'product_variant_id', select: 'sku_variante product_id', populate: { path: 'product_id', select: 'nom' } })
+        .limit(20)
+        .lean(),
+      OrderTracking.find({ type: 'commande_client' })
+        .select('quantite product_variant_id')
+        .populate({ path: 'product_variant_id', select: 'product_id' })
+        .lean(),
+      Payment.aggregate([{ $group: { _id: '$order_tracking_id', total: { $sum: '$montant' } } }]),
+      Payment.aggregate([
+        { $match: { date_paiement: { $gte: thirtyDaysAgo } } },
+        { $group: { _id: null, total: { $sum: '$montant' } } },
+      ]),
     ]);
 
     const priceMap = new Map(latestPricingByProduct.map((p) => [p._id.toString(), p]));
@@ -162,6 +184,78 @@ export async function GET() {
       .sort((a, b) => b.quantite - a.quantite)
       .slice(0, 5);
 
+    // Ventes par jour (30j) pour le graphique en courbe.
+    const parJour = new Map<string, number>();
+    for (const sale of recentSales as any[]) {
+      const product = sale.product_variant_id?.product_id;
+      if (!product) continue;
+      const pricing = priceMap.get(product._id.toString());
+      if (!pricing) continue;
+      const jour = new Date(sale.date_maj).toISOString().slice(0, 10);
+      parJour.set(jour, (parJour.get(jour) ?? 0) + sale.quantite * pricing.prix_revente_final);
+    }
+    const ventesParJour = Array.from(parJour.entries())
+      .map(([date, ca]) => ({ date, ca: Math.round(ca * 100) / 100 }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Prévision simple : moyenne quotidienne des 30 derniers jours × 30.
+    // Estimation grossière, pas un modèle statistique — peu d'historique.
+    const previsionCA30j = Math.round((chiffreAffaires30j / 30) * 30 * 100) / 100;
+
+    // Points d'attention : incohérences détectables automatiquement.
+    const imageCountMap = new Map(imagesCountByProduct.map((i) => [i._id.toString(), i.count]));
+    const pointsAttention: { type: string; message: string; lien: string; severite: 'critique' | 'attention' }[] = [];
+    for (const p of allProducts) {
+      const id = p._id.toString();
+      if (p.statut === 'archive') continue;
+      if (!priceMap.has(id)) {
+        pointsAttention.push({
+          type: 'prix_manquant',
+          message: `"${p.nom}" n'a aucun prix enregistré`,
+          lien: `/products/${id}`,
+          severite: 'critique',
+        });
+      }
+      if (!stockMap.has(id)) {
+        pointsAttention.push({
+          type: 'variante_manquante',
+          message: `"${p.nom}" n'a aucune variante`,
+          lien: `/products/${id}`,
+          severite: 'critique',
+        });
+      }
+      if (!imageCountMap.has(id)) {
+        pointsAttention.push({
+          type: 'image_manquante',
+          message: `"${p.nom}" n'a aucune image`,
+          lien: `/products/${id}`,
+          severite: 'attention',
+        });
+      }
+    }
+    for (const o of stuckOrders as any[]) {
+      const nom = o.product_variant_id?.product_id?.nom ?? 'Produit supprimé';
+      pointsAttention.push({
+        type: 'commande_bloquee',
+        message: `Entrée "${nom}" bloquée au statut "${o.statut}" depuis plus de 14 jours`,
+        lien: `/orders`,
+        severite: 'attention',
+      });
+    }
+
+    // Encaissements / reste à payer sur les commandes clients (facturation légère).
+    const paymentsByOrderMap = new Map(paymentsByOrder.map((p) => [p._id.toString(), p.total]));
+    let resteAPayer = 0;
+    for (const o of allClientOrders as any[]) {
+      const productId = o.product_variant_id?.product_id?.toString();
+      const pricing = productId ? priceMap.get(productId) : undefined;
+      if (!pricing) continue;
+      const total = pricing.prix_revente_final * o.quantite;
+      const encaisse = paymentsByOrderMap.get(o._id.toString()) ?? 0;
+      resteAPayer += Math.max(0, total - encaisse);
+    }
+    const encaissements30j = (encaissements30jAgg as any[])[0]?.total ?? 0;
+
     return NextResponse.json({
       success: true,
       data: {
@@ -177,7 +271,12 @@ export async function GET() {
           nombreVentes: (recentSales as any[]).length,
           chiffreAffaires: Math.round(chiffreAffaires30j * 100) / 100,
           meilleuresVentes,
+          parJour: ventesParJour,
+          previsionCA30jSuivants: previsionCA30j,
+          encaissements30j: Math.round(encaissements30j * 100) / 100,
+          resteAPayer: Math.round(resteAPayer * 100) / 100,
         },
+        pointsAttention,
       },
     });
   } catch (error) {

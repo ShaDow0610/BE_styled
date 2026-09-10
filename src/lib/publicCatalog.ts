@@ -28,7 +28,12 @@ interface Filters {
   categorie?: string;
   couleur?: string;
   taille?: string;
+  q?: string;
   limit?: number;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
@@ -43,6 +48,7 @@ export async function getPublicProducts(filters: Filters = {}): Promise<PublicPr
 
   const query: Record<string, unknown> = { statut: "disponible" };
   if (filters.categorie) query.categorie = filters.categorie;
+  if (filters.q) query.nom = { $regex: escapeRegExp(filters.q), $options: "i" };
 
   const products = await Product.find(query)
     .sort({ date_creation: -1 })

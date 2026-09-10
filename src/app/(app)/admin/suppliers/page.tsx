@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/components/common/ToastProvider";
 
 interface Supplier {
   _id: string;
@@ -17,12 +18,14 @@ const EMPTY_FORM = { nom: "", type: "usine_chine" as Supplier["type"], delai_moy
 
 export default function SuppliersPage() {
   const router = useRouter();
+  const toast = useToast();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [canWrite, setCanWrite] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -59,17 +62,22 @@ export default function SuppliersPage() {
     const data = await res.json();
     if (!res.ok || !data.success) {
       setError(data.error || "Erreur lors de la création");
+      toast.error(data.error || "Erreur lors de la création");
       return;
     }
     setForm(EMPTY_FORM);
     setShowForm(false);
+    toast.success("Fournisseur créé");
     load();
   };
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/suppliers/${id}`, { method: "DELETE" });
+    toast.success("Fournisseur supprimé");
     load();
   };
+
+  const filteredSuppliers = suppliers.filter((s) => s.nom.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -128,13 +136,23 @@ export default function SuppliersPage() {
         </form>
       )}
 
+      <div className="mb-4 max-w-md">
+        <input
+          type="text"
+          placeholder="Rechercher un fournisseur..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+        />
+      </div>
+
       <div className="bg-white rounded-lg shadow p-6">
         {isLoading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-ink"></div>
           </div>
-        ) : suppliers.length === 0 ? (
-          <p className="text-ink-soft/70 text-sm">Aucun fournisseur pour le moment.</p>
+        ) : filteredSuppliers.length === 0 ? (
+          <p className="text-ink-soft/70 text-sm">Aucun fournisseur trouvé.</p>
         ) : (
           <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -148,7 +166,7 @@ export default function SuppliersPage() {
               </tr>
             </thead>
             <tbody>
-              {suppliers.map((s) => (
+              {filteredSuppliers.map((s) => (
                 <tr key={s._id} className="border-b border-silver-soft/50">
                   <td className="py-2 pr-4 text-ink font-medium">{s.nom}</td>
                   <td className="py-2 pr-4 text-ink-soft">{s.type === "usine_chine" ? "Usine Chine" : "Couturier local"}</td>
