@@ -35,8 +35,8 @@ export default async function ProductDetailPage({ params }: { params: Params }) 
         <div>
           <p className="text-sm text-ink-soft/60 capitalize">{product.categorie}</p>
           <h1 className="font-serif text-3xl text-ink mt-1 mb-4">{product.nom}</h1>
-          {product.prix != null && (
-            <p className="text-2xl font-bold text-ink mb-6">${product.prix}</p>
+          {product.matiere && (
+            <p className="text-sm text-ink-soft mb-2">Matière : {product.matiere}</p>
           )}
           <p className="text-ink-soft mb-8">{product.description}</p>
 

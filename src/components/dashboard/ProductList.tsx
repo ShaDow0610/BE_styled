@@ -17,6 +17,7 @@ export interface ProductListItem {
   statut: string;
   stock_total?: number;
   prix_actuel?: number | null;
+  prix_a_partir_de?: number | null;
 }
 
 interface ProductListProps {
@@ -89,6 +90,9 @@ export const ProductList: React.FC<ProductListProps> = ({ products }) => {
             <div className="flex items-center gap-4">
               {canSeeFinancials && product.prix_actuel != null && (
                 <p className="text-xl font-bold text-ink">${product.prix_actuel}</p>
+              )}
+              {canSeeFinancials && product.prix_actuel == null && product.prix_a_partir_de != null && (
+                <p className="text-sm font-semibold text-ink-soft">à partir de ${product.prix_a_partir_de}</p>
               )}
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-ivory-soft text-ink-soft">
                 {STATUT_LABELS[product.statut] ?? product.statut}

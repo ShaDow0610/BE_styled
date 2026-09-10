@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import OrderTracking from '@/lib/models/OrderTracking';
 import Payment from '@/lib/models/Payment';
-import ProductPricing from '@/lib/models/ProductPricing';
+import ProductVariant from '@/lib/models/ProductVariant';
+import { buildPriceIndex, resolvePrice } from '@/lib/priceResolver';
 import { canWrite, getRole } from '@/lib/authz';
 
 export async function GET() {
@@ -12,35 +13,41 @@ export async function GET() {
       .sort({ date_maj: -1 })
       .populate({
         path: 'product_variant_id',
-        select: 'taille couleur sku_variante product_id',
+        select: 'taille couleur sku_variante product_id modele',
         populate: { path: 'product_id', select: 'nom' },
       })
       .lean();
 
-    const clientOrderIds = orders
-      .filter((o) => o.type === 'commande_client')
-      .map((o) => o._id);
+    const clientOrders = orders.filter((o) => o.type === 'commande_client');
+    const clientOrderIds = clientOrders.map((o) => o._id);
 
-    const [paymentsByOrder, latestPricingByProduct] = await Promise.all([
+    // Filet de secours pour les commandes créées avant l'ajout du prix figé :
+    // on résout leur prix en direct plutôt que de les afficher sans montant.
+    const legacyProductIds = clientOrders
+      .filter((o) => o.montant_total == null)
+      .map((o) => (o.product_variant_id as any)?.product_id?._id)
+      .filter(Boolean);
+
+    const [paymentsByOrder, legacyPriceIndex] = await Promise.all([
       Payment.aggregate([
         { $match: { order_tracking_id: { $in: clientOrderIds } } },
         { $group: { _id: '$order_tracking_id', total: { $sum: '$montant' } } },
       ]),
-      ProductPricing.aggregate([
-        { $sort: { date_effet: -1 } },
-        { $group: { _id: '$product_id', prix_revente_final: { $first: '$prix_revente_final' } } },
-      ]),
+      buildPriceIndex(legacyProductIds),
     ]);
 
     const paymentsMap = new Map(paymentsByOrder.map((p) => [p._id.toString(), p.total]));
-    const priceMap = new Map(latestPricingByProduct.map((p) => [p._id.toString(), p.prix_revente_final]));
 
     const data = orders.map((o) => {
       if (o.type !== 'commande_client') return o;
 
-      const productId = (o.product_variant_id as any)?.product_id?._id?.toString();
-      const prix = productId ? priceMap.get(productId) : undefined;
-      const montant_total = prix != null ? Math.round(prix * o.quantite * 100) / 100 : null;
+      let montant_total = o.montant_total;
+      if (montant_total == null) {
+        const variant = o.product_variant_id as any;
+        const productId = variant?.product_id?._id?.toString();
+        const prix = productId ? resolvePrice(legacyPriceIndex, productId, variant?.modele) : null;
+        montant_total = prix != null ? Math.round(prix * o.quantite * 100) / 100 : null;
+      }
       const montant_encaisse = Math.round((paymentsMap.get(o._id.toString()) ?? 0) * 100) / 100;
 
       return { ...o, montant_total, montant_encaisse };
@@ -61,12 +68,27 @@ export async function POST(request: NextRequest) {
 
     await dbConnect();
     const body = await request.json();
+    const quantite = Math.max(1, Number(body.quantite) || 1);
+
+    let prix_unitaire: number | null = null;
+    let montant_total: number | null = null;
+
+    if (body.type === 'commande_client') {
+      const variant = await ProductVariant.findById(body.product_variant_id).select('product_id modele');
+      if (variant) {
+        const priceIndex = await buildPriceIndex([variant.product_id]);
+        prix_unitaire = resolvePrice(priceIndex, variant.product_id.toString(), variant.modele);
+        montant_total = prix_unitaire != null ? Math.round(prix_unitaire * quantite * 100) / 100 : null;
+      }
+    }
 
     const order = await OrderTracking.create({
       product_variant_id: body.product_variant_id,
       type: body.type,
       statut: 'commande',
-      quantite: Math.max(1, Number(body.quantite) || 1),
+      quantite,
+      prix_unitaire,
+      montant_total,
       date_maj: new Date(),
     });
     return NextResponse.json({ success: true, data: order }, { status: 201 });

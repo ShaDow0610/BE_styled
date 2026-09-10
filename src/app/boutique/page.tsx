@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGem, faBolt } from "@fortawesome/free-solid-svg-icons";
 import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
 import PromoBanner from "./components/PromoBanner";
+import Price from "./components/Price";
 import { getPublicProducts, getPublicLooks } from "@/lib/publicCatalog";
 import { buildWhatsAppLink, buildWhatsAppLookLink } from "@/lib/whatsapp";
 
@@ -94,7 +95,7 @@ export default async function BoutiqueHomePage() {
                   )}
                   <div className="p-4">
                     <h3 className="font-semibold text-ink">{look.nom}</h3>
-                    <p className="text-ink font-bold mt-1">${look.prix_pack}</p>
+                    <Price xaf={look.prix_pack} className="block text-ink font-bold mt-1" />
                   </div>
                 </Link>
                 <div className="px-4 pb-4">
@@ -139,9 +140,13 @@ export default async function BoutiqueHomePage() {
                   )}
                   <div className="p-4">
                     <h3 className="font-semibold text-ink">{product.nom}</h3>
-                    {product.prix != null && (
-                      <p className="text-ink font-bold mt-1">${product.prix}</p>
-                    )}
+                    {product.prix != null ? (
+                      <Price xaf={product.prix} className="block text-ink font-bold mt-1" />
+                    ) : product.prix_a_partir_de != null ? (
+                      <p className="text-ink font-bold mt-1">
+                        à partir de <Price xaf={product.prix_a_partir_de} />
+                      </p>
+                    ) : null}
                   </div>
                 </Link>
                 <div className="px-4 pb-4">

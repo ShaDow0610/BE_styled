@@ -10,6 +10,7 @@ import {
   faTruckField,
   faTicket,
   faUsers,
+  faMoneyBillTransfer,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface StoredUser {
@@ -69,6 +70,13 @@ export default function AdminPage() {
       icon: faUsers,
       title: "Utilisateurs",
       description: "Rôles et accès de l'équipe",
+      visible: user.role === "admin",
+    },
+    {
+      href: "/admin/exchange-rates",
+      icon: faMoneyBillTransfer,
+      title: "Taux de change",
+      description: "Taux XAF/USD et XAF/EUR affichés en boutique",
       visible: user.role === "admin",
     },
   ].filter((s) => s.visible);

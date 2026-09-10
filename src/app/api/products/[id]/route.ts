@@ -55,3 +55,31 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ success: false, error: 'Failed to update product' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest, { params }: Params) {
+  try {
+    if (!canWrite(getRole(request))) {
+      return NextResponse.json({ success: false, error: 'Accès refusé' }, { status: 403 });
+    }
+
+    await dbConnect();
+    const { id } = await params;
+
+    const product = await Product.findByIdAndDelete(id);
+    if (!product) {
+      return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
+    }
+
+    // Suppression en cascade — plus rien ne doit référencer ce produit.
+    await Promise.all([
+      ProductVariant.deleteMany({ product_id: id }),
+      ProductPricing.deleteMany({ product_id: id }),
+      ProductImage.deleteMany({ product_id: id }),
+    ]);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    return NextResponse.json({ success: false, error: 'Failed to delete product' }, { status: 500 });
+  }
+}

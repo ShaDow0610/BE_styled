@@ -1,5 +1,6 @@
 import { getPublicLooks } from "@/lib/publicCatalog";
 import { buildWhatsAppLookLink } from "@/lib/whatsapp";
+import Price from "../components/Price";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function LooksPage() {
               <div className="p-5">
                 <h3 className="font-serif text-xl text-ink">{look.nom}</h3>
                 <p className="text-ink-soft/70 text-sm mt-1">{look.item_count} article(s)</p>
-                <p className="text-2xl font-bold text-ink mt-2">${look.prix_pack}</p>
+                <Price xaf={look.prix_pack} className="block text-2xl font-bold text-ink mt-2" />
                 <a
                   href={buildWhatsAppLookLink(look.nom)}
                   target="_blank"

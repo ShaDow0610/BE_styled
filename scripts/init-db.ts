@@ -13,6 +13,7 @@ import ProductPricing from '../src/lib/models/ProductPricing';
 import Brand from '../src/lib/models/Brand';
 import Supplier from '../src/lib/models/Supplier';
 import OrderTracking from '../src/lib/models/OrderTracking';
+import ListOption from '../src/lib/models/ListOption';
 import { calculatePricing } from '../src/lib/pricing';
 
 dotenv.config({ path: '.env.local' });
@@ -222,6 +223,17 @@ async function initDB() {
     } else {
       console.log('⚠️ Des ventes existent déjà, skipping');
     }
+
+    console.log('📋 Seed des listes de valeurs (couleur/taille/matière)...');
+    const listOptions: { type: 'couleur' | 'taille' | 'matiere'; valeur: string }[] = [
+      ...['Noir', 'Blanc', 'Bleu', 'Rouge', 'Gris', 'Beige', 'Marron', 'Vert'].map((v) => ({ type: 'couleur' as const, valeur: v })),
+      ...['XS', 'S', 'M', 'L', 'XL', 'XXL', '38', '39', '40', '41', '42', '43', '44'].map((v) => ({ type: 'taille' as const, valeur: v })),
+      ...['Coton', 'Lin', 'Soie', 'Denim', 'Cuir', 'Laine', 'Polyester'].map((v) => ({ type: 'matiere' as const, valeur: v })),
+    ];
+    for (const opt of listOptions) {
+      await ListOption.findOneAndUpdate(opt, opt, { upsert: true });
+    }
+    console.log('✓ Listes de valeurs prêtes');
 
     console.log('\n✨ Base de données initialisée avec succès!');
     console.log('\n📝 Identifiants de test:');

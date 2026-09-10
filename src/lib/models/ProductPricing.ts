@@ -2,6 +2,9 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IProductPricing extends Document {
   product_id: mongoose.Schema.Types.ObjectId;
+  // Absent/null = prix par défaut du produit (s'applique à tout modèle qui
+  // n'a pas de prix spécifique). Renseigné = prix propre à ce modèle.
+  modele?: string;
   date_effet: Date;
   cout_achat: number;
   devise_achat: 'CNY' | 'USD' | 'XAF';
@@ -20,6 +23,7 @@ export interface IProductPricing extends Document {
 
 const ProductPricingSchema = new Schema<IProductPricing>({
   product_id: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+  modele: { type: String, default: null },
   date_effet: { type: Date, default: Date.now },
   cout_achat: { type: Number, required: true, min: 0 },
   devise_achat: { type: String, enum: ['CNY', 'USD', 'XAF'], required: true },
@@ -37,7 +41,7 @@ const ProductPricingSchema = new Schema<IProductPricing>({
   raison_changement: { type: String },
 });
 
-ProductPricingSchema.index({ product_id: 1, date_effet: -1 });
+ProductPricingSchema.index({ product_id: 1, modele: 1, date_effet: -1 });
 
 export default mongoose.models.ProductPricing ||
   mongoose.model<IProductPricing>('ProductPricing', ProductPricingSchema);

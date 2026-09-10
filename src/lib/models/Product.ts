@@ -35,6 +35,7 @@ export interface IProduct extends Document {
   description: string;
   marque_partenaire_id?: mongoose.Schema.Types.ObjectId;
   fournisseur_id?: mongoose.Schema.Types.ObjectId;
+  matiere?: string;
   poids_kg: number;
   statut: ProductStatus;
   date_creation: Date;
@@ -48,6 +49,7 @@ const ProductSchema = new Schema<IProduct>({
   description: { type: String, default: '' },
   marque_partenaire_id: { type: Schema.Types.ObjectId, ref: 'Brand', default: null },
   fournisseur_id: { type: Schema.Types.ObjectId, ref: 'Supplier', default: null },
+  matiere: { type: String, default: '' },
   poids_kg: { type: Number, default: 0, min: 0 },
   statut: { type: String, enum: PRODUCT_STATUSES, default: 'brouillon' },
   date_creation: { type: Date, default: Date.now },

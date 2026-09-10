@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUserRole } from "@/lib/useUserRole";
 import { useToast } from "@/components/common/ToastProvider";
+import EditableSelect from "@/components/common/EditableSelect";
 
 const CATEGORIES = [
   "pantalon", "chemise", "tricot", "culotte", "bracelet",
@@ -27,6 +28,7 @@ interface Product {
   description: string;
   marque_partenaire_id?: string | null;
   fournisseur_id?: string | null;
+  matiere?: string;
   poids_kg: number;
   statut: string;
 }
@@ -43,6 +45,7 @@ interface Variant {
 
 interface Pricing {
   _id: string;
+  modele?: string;
   date_effet: string;
   cout_achat: number;
   devise_achat: string;
@@ -84,7 +87,7 @@ export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { canWrite, canSeeFinancials } = useUserRole();
+  const { canWrite, canSeeFinancials, isAdmin } = useUserRole();
 
   const [tab, setTab] = useState<Tab>("infos");
   const [product, setProduct] = useState<Product | null>(null);
@@ -183,10 +186,10 @@ export default function ProductDetailPage() {
       </div>
 
       {tab === "infos" && (
-        <InfosTab product={product} brands={brands} suppliers={suppliers} onSaved={load} canWrite={canWrite} />
+        <InfosTab product={product} brands={brands} suppliers={suppliers} onSaved={load} canWrite={canWrite} isAdmin={isAdmin} />
       )}
       {tab === "prix" && canSeeFinancials && (
-        <PrixTab productId={id} history={pricingHistory} onSaved={load} canWrite={canWrite} />
+        <PrixTab productId={id} history={pricingHistory} variants={variants} onSaved={load} canWrite={canWrite} />
       )}
       {tab === "variantes" && (
         <VariantesTab productId={id} variants={variants} onSaved={load} canWrite={canWrite} />
@@ -204,26 +207,48 @@ function InfosTab({
   suppliers,
   onSaved,
   canWrite,
+  isAdmin,
 }: {
   product: Product;
   brands: RefOption[];
   suppliers: RefOption[];
   onSaved: () => void;
   canWrite: boolean;
+  isAdmin: boolean;
 }) {
   const toast = useToast();
+  const router = useRouter();
   const [form, setForm] = useState({
     nom: product.nom,
     categorie: product.categorie,
     origine: product.origine,
     description: product.description || "",
+    matiere: product.matiere || "",
     poids_kg: String(product.poids_kg ?? 0),
     statut: product.statut,
     marque_partenaire_id: product.marque_partenaire_id || "",
     fournisseur_id: product.fournisseur_id || "",
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Supprimer définitivement "${product.nom}" ? Cette action supprime aussi ses variantes, prix et images. Elle est irréversible.`)) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/products/${product._id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Échec de la suppression");
+      toast.success("Produit supprimé");
+      router.push("/products");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      toast.error(message);
+      setIsDeleting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -330,6 +355,15 @@ function InfosTab({
           ))}
         </select>
       </div>
+      <div>
+        <label className="block text-sm font-medium text-ink-soft mb-2">Matière / tissu</label>
+        <EditableSelect
+          type="matiere"
+          value={form.matiere}
+          onChange={(v) => setForm({ ...form, matiere: v })}
+          placeholder="Choisir une matière..."
+        />
+      </div>
       <div className="md:col-span-2">
         <label className="block text-sm font-medium text-ink-soft mb-2">Description</label>
         <textarea
@@ -351,46 +385,87 @@ function InfosTab({
           </button>
         </div>
       )}
+      {isAdmin && (
+        <div className="md:col-span-2 mt-4 pt-4 border-t border-silver-soft">
+          <p className="text-sm font-medium text-red-600 mb-2">Zone dangereuse</p>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="px-6 py-2 border border-red-600 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50">
+            {isDeleting ? "Suppression..." : "Supprimer le produit"}
+          </button>
+        </div>
+      )}
     </form>
   );
 }
 
 const PRICING_FORM_DEFAULTS = {
+  modele: "",
   cout_achat: "",
   devise_achat: "CNY",
   taux_change_applique: "1",
-  cout_transport: "0",
   mode_transport: "bateau",
   delai_estime_jours: "0",
-  cout_douane: "0",
-  cout_packaging: "0",
-  cout_main_oeuvre: "0",
   marge_pourcentage: "30",
+  prix_revente_final: "",
   raison_changement: "",
+};
+
+const COST_TOGGLE_DEFAULTS = {
+  cout_transport: { actif: false, valeur: "" },
+  cout_douane: { actif: false, valeur: "" },
+  cout_packaging: { actif: false, valeur: "" },
+  cout_main_oeuvre: { actif: false, valeur: "" },
+};
+
+type CostKey = keyof typeof COST_TOGGLE_DEFAULTS;
+const COST_LABELS: Record<CostKey, string> = {
+  cout_transport: "Coût transport",
+  cout_douane: "Coût douane",
+  cout_packaging: "Coût packaging",
+  cout_main_oeuvre: "Coût main-d'œuvre",
 };
 
 function PrixTab({
   productId,
   history,
+  variants,
   onSaved,
   canWrite,
 }: {
   productId: string;
   history: Pricing[];
+  variants: Variant[];
   onSaved: () => void;
   canWrite: boolean;
 }) {
   const toast = useToast();
+  const modeles = Array.from(new Set(variants.map((v) => v.modele).filter((m): m is string => !!m)));
   const [form, setForm] = useState(PRICING_FORM_DEFAULTS);
-  const [preview, setPreview] = useState<{ prix_revient_total: number; prix_revente_final: number } | null>(null);
+  const [costs, setCosts] = useState(COST_TOGGLE_DEFAULTS);
+  const [priceMode, setPriceMode] = useState<"marge" | "prix">("marge");
+  const [preview, setPreview] = useState<{ prix_revient_total: number; prix_revente_final: number; marge_pourcentage: number } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const costValue = (key: CostKey) => (costs[key].actif ? Number(costs[key].valeur) || 0 : 0);
 
   useEffect(() => {
     const coutAchat = Number(form.cout_achat);
     const taux = Number(form.taux_change_applique);
     const marge = Number(form.marge_pourcentage);
-    if (!coutAchat || !taux || Number.isNaN(marge)) {
+    const prixVente = Number(form.prix_revente_final);
+    if (!coutAchat || !taux) {
+      setPreview(null);
+      return;
+    }
+    if (priceMode === "marge" && Number.isNaN(marge)) {
+      setPreview(null);
+      return;
+    }
+    if (priceMode === "prix" && !prixVente) {
       setPreview(null);
       return;
     }
@@ -405,11 +480,11 @@ function PrixTab({
           body: JSON.stringify({
             cout_achat: coutAchat,
             taux_change_applique: taux,
-            cout_transport: Number(form.cout_transport) || 0,
-            cout_douane: Number(form.cout_douane) || 0,
-            cout_packaging: Number(form.cout_packaging) || 0,
-            cout_main_oeuvre: Number(form.cout_main_oeuvre) || 0,
-            marge_pourcentage: marge,
+            cout_transport: costValue("cout_transport"),
+            cout_douane: costValue("cout_douane"),
+            cout_packaging: costValue("cout_packaging"),
+            cout_main_oeuvre: costValue("cout_main_oeuvre"),
+            ...(priceMode === "marge" ? { marge_pourcentage: marge } : { prix_revente_final: prixVente }),
           }),
         });
         if (res.ok) {
@@ -425,7 +500,8 @@ function PrixTab({
       controller.abort();
       clearTimeout(timeout);
     };
-  }, [form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, costs, priceMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -436,21 +512,25 @@ function PrixTab({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          modele: form.modele || undefined,
           cout_achat: Number(form.cout_achat),
           devise_achat: form.devise_achat,
           taux_change_applique: Number(form.taux_change_applique),
-          cout_transport: Number(form.cout_transport) || 0,
           mode_transport: form.mode_transport,
           delai_estime_jours: Number(form.delai_estime_jours) || 0,
-          cout_douane: Number(form.cout_douane) || 0,
-          cout_packaging: Number(form.cout_packaging) || 0,
-          cout_main_oeuvre: Number(form.cout_main_oeuvre) || 0,
-          marge_pourcentage: Number(form.marge_pourcentage),
+          cout_transport: costValue("cout_transport"),
+          cout_douane: costValue("cout_douane"),
+          cout_packaging: costValue("cout_packaging"),
+          cout_main_oeuvre: costValue("cout_main_oeuvre"),
+          ...(priceMode === "marge"
+            ? { marge_pourcentage: Number(form.marge_pourcentage) }
+            : { prix_revente_final: Number(form.prix_revente_final) }),
           raison_changement: form.raison_changement || undefined,
         }),
       });
       if (!res.ok) throw new Error("Échec de l'enregistrement du prix");
       setForm(PRICING_FORM_DEFAULTS);
+      setCosts(COST_TOGGLE_DEFAULTS);
       toast.success("Prix enregistré");
       onSaved();
     } catch (err) {
@@ -468,6 +548,15 @@ function PrixTab({
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6">
         <h2 className="font-serif text-xl text-ink mb-4">Calculateur de prix</h2>
         <div className="grid md:grid-cols-3 gap-4">
+          <Field label="Modèle concerné">
+            <select
+              value={form.modele}
+              onChange={(e) => setForm({ ...form, modele: e.target.value })}
+              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
+              <option value="">Tous modèles (prix par défaut)</option>
+              {modeles.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </Field>
           <Field label="Coût achat">
             <input
               type="number" step="0.01" min="0" required
@@ -500,14 +589,6 @@ function PrixTab({
               {MODES_TRANSPORT.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </Field>
-          <Field label="Coût transport">
-            <input
-              type="number" step="0.01" min="0"
-              value={form.cout_transport}
-              onChange={(e) => setForm({ ...form, cout_transport: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-            />
-          </Field>
           <Field label="Délai estimé (jours)">
             <input
               type="number" min="0"
@@ -516,38 +597,70 @@ function PrixTab({
               className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
             />
           </Field>
-          <Field label="Coût douane">
-            <input
-              type="number" step="0.01" min="0"
-              value={form.cout_douane}
-              onChange={(e) => setForm({ ...form, cout_douane: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-            />
+
+          {(Object.keys(COST_TOGGLE_DEFAULTS) as CostKey[]).map((key) => (
+            <Field key={key} label={COST_LABELS[key]}>
+              <div className="flex gap-2">
+                <div className="flex border border-silver-soft rounded-lg overflow-hidden shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setCosts({ ...costs, [key]: { actif: false, valeur: "" } })}
+                    className={`px-3 py-2 text-sm ${!costs[key].actif ? "bg-ink text-ivory" : "text-ink-soft"}`}>
+                    Non
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCosts({ ...costs, [key]: { ...costs[key], actif: true } })}
+                    className={`px-3 py-2 text-sm ${costs[key].actif ? "bg-ink text-ivory" : "text-ink-soft"}`}>
+                    Oui
+                  </button>
+                </div>
+                {costs[key].actif && (
+                  <input
+                    type="number" step="0.01" min="0" autoFocus
+                    value={costs[key].valeur}
+                    onChange={(e) => setCosts({ ...costs, [key]: { ...costs[key], valeur: e.target.value } })}
+                    className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                  />
+                )}
+              </div>
+            </Field>
+          ))}
+
+          <Field label={priceMode === "marge" ? "Marge (%)" : "Prix de vente ($)"}>
+            <div className="flex gap-2">
+              <div className="flex border border-silver-soft rounded-lg overflow-hidden shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setPriceMode("marge")}
+                  className={`px-3 py-2 text-sm ${priceMode === "marge" ? "bg-ink text-ivory" : "text-ink-soft"}`}>
+                  Marge %
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPriceMode("prix")}
+                  className={`px-3 py-2 text-sm ${priceMode === "prix" ? "bg-ink text-ivory" : "text-ink-soft"}`}>
+                  Prix $
+                </button>
+              </div>
+              {priceMode === "marge" ? (
+                <input
+                  type="number" step="0.1" min="0" required
+                  value={form.marge_pourcentage}
+                  onChange={(e) => setForm({ ...form, marge_pourcentage: e.target.value })}
+                  className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                />
+              ) : (
+                <input
+                  type="number" step="0.01" min="0" required
+                  value={form.prix_revente_final}
+                  onChange={(e) => setForm({ ...form, prix_revente_final: e.target.value })}
+                  className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                />
+              )}
+            </div>
           </Field>
-          <Field label="Coût packaging">
-            <input
-              type="number" step="0.01" min="0"
-              value={form.cout_packaging}
-              onChange={(e) => setForm({ ...form, cout_packaging: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-            />
-          </Field>
-          <Field label="Coût main-d'œuvre">
-            <input
-              type="number" step="0.01" min="0"
-              value={form.cout_main_oeuvre}
-              onChange={(e) => setForm({ ...form, cout_main_oeuvre: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-            />
-          </Field>
-          <Field label="Marge (%)">
-            <input
-              type="number" step="0.1" min="0" required
-              value={form.marge_pourcentage}
-              onChange={(e) => setForm({ ...form, marge_pourcentage: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-            />
-          </Field>
+
           <div className="md:col-span-3">
             <Field label="Raison du changement (optionnel)">
               <input
@@ -567,8 +680,10 @@ function PrixTab({
               <p className="text-2xl font-bold text-ink">${preview.prix_revient_total}</p>
             </div>
             <div>
-              <p className="text-xs text-ink-soft/70">Prix de revente final</p>
-              <p className="text-2xl font-bold text-ink">${preview.prix_revente_final}</p>
+              <p className="text-xs text-ink-soft/70">{priceMode === "marge" ? "Prix de revente final" : "Marge"}</p>
+              <p className="text-2xl font-bold text-ink">
+                {priceMode === "marge" ? `$${preview.prix_revente_final}` : `${preview.marge_pourcentage}%`}
+              </p>
             </div>
           </div>
         )}
@@ -594,6 +709,7 @@ function PrixTab({
               <thead>
                 <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
                   <th className="py-2 pr-4">Date</th>
+                  <th className="py-2 pr-4">Modèle</th>
                   <th className="py-2 pr-4">Revient</th>
                   <th className="py-2 pr-4">Marge</th>
                   <th className="py-2 pr-4">Revente</th>
@@ -606,6 +722,7 @@ function PrixTab({
                     <td className="py-2 pr-4 text-ink-soft">
                       {new Date(h.date_effet).toLocaleDateString("fr-FR")}
                     </td>
+                    <td className="py-2 pr-4 text-ink-soft">{h.modele || "Défaut"}</td>
                     <td className="py-2 pr-4 text-ink">${h.prix_revient_total}</td>
                     <td className="py-2 pr-4 text-ink">{h.marge_pourcentage}%</td>
                     <td className="py-2 pr-4 font-semibold text-ink">${h.prix_revente_final}</td>
@@ -686,12 +803,10 @@ function VariantesTab({
       {canWrite && (
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 grid md:grid-cols-3 gap-4">
         <Field label="Taille">
-          <input required value={form.taille} onChange={(e) => setForm({ ...form, taille: e.target.value })}
-            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
+          <EditableSelect type="taille" required value={form.taille} onChange={(v) => setForm({ ...form, taille: v })} placeholder="Choisir une taille..." />
         </Field>
         <Field label="Couleur">
-          <input required value={form.couleur} onChange={(e) => setForm({ ...form, couleur: e.target.value })}
-            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
+          <EditableSelect type="couleur" required value={form.couleur} onChange={(v) => setForm({ ...form, couleur: v })} placeholder="Choisir une couleur..." />
         </Field>
         <Field label="Modèle (optionnel)">
           <input value={form.modele} onChange={(e) => setForm({ ...form, modele: e.target.value })}
@@ -730,6 +845,7 @@ function VariantesTab({
               <thead>
                 <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
                   <th className="py-2 pr-4">SKU</th>
+                  <th className="py-2 pr-4">Modèle</th>
                   <th className="py-2 pr-4">Taille</th>
                   <th className="py-2 pr-4">Couleur</th>
                   <th className="py-2 pr-4">Stock</th>
@@ -741,6 +857,7 @@ function VariantesTab({
                 {variants.map((v) => (
                   <tr key={v._id} className="border-b border-silver-soft/50">
                     <td className="py-2 pr-4 text-ink">{v.sku_variante}</td>
+                    <td className="py-2 pr-4 text-ink-soft">{v.modele || "—"}</td>
                     <td className="py-2 pr-4 text-ink-soft">{v.taille}</td>
                     <td className="py-2 pr-4 text-ink-soft">{v.couleur}</td>
                     <td className={`py-2 pr-4 font-medium ${v.stock_quantite <= v.seuil_alerte ? "text-red-600" : "text-ink"}`}>

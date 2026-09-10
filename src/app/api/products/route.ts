@@ -1,9 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
-import Product from '@/lib/models/Product';
+import Product, { PRODUCT_CATEGORIES } from '@/lib/models/Product';
 import ProductVariant from '@/lib/models/ProductVariant';
-import ProductPricing from '@/lib/models/ProductPricing';
+import { buildPriceIndex, resolvePrice, resolveMinPrice } from '@/lib/priceResolver';
 import { canWrite, getRole } from '@/lib/authz';
+
+const CATEGORY_CODES: Record<string, string> = {
+  pantalon: 'PANT',
+  chemise: 'CHEM',
+  tricot: 'TRIC',
+  culotte: 'CULO',
+  bracelet: 'BRAC',
+  montre: 'MONT',
+  chaussure: 'CHAU',
+  bague: 'BAGU',
+  chapeau: 'CHAP',
+  lunette: 'LUNE',
+  autre: 'AUTR',
+};
+
+async function generateReference(categorie: string): Promise<string> {
+  const code = CATEGORY_CODES[categorie] || 'AUTR';
+  let attempt = (await Product.countDocuments({ categorie })) + 1;
+
+  for (let i = 0; i < 20; i++) {
+    const reference = `BSTY-${code}-${String(attempt).padStart(3, '0')}`;
+    const exists = await Product.exists({ reference });
+    if (!exists) return reference;
+    attempt += 1;
+  }
+  // Filet de sécurité très improbable : suffixe temporel pour garantir l'unicité.
+  return `BSTY-${code}-${Date.now()}`;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,32 +59,27 @@ export async function GET(request: NextRequest) {
     const total = await Product.countDocuments(query);
     const productIds = products.map((p) => p._id);
 
-    // Stock total et dernier prix agrégés en 2 requêtes (pas de N+1 par produit).
-    const [stockByProduct, latestPricing] = await Promise.all([
+    // Stock total et prix agrégés sans N+1 par produit.
+    const [stockByProduct, priceIndex] = await Promise.all([
       ProductVariant.aggregate([
         { $match: { product_id: { $in: productIds } } },
         { $group: { _id: '$product_id', stock_total: { $sum: '$stock_quantite' } } },
       ]),
-      ProductPricing.aggregate([
-        { $match: { product_id: { $in: productIds } } },
-        { $sort: { date_effet: -1 } },
-        {
-          $group: {
-            _id: '$product_id',
-            prix_revente_final: { $first: '$prix_revente_final' },
-          },
-        },
-      ]),
+      buildPriceIndex(productIds),
     ]);
 
     const stockMap = new Map(stockByProduct.map((s) => [s._id.toString(), s.stock_total]));
-    const priceMap = new Map(latestPricing.map((p) => [p._id.toString(), p.prix_revente_final]));
 
-    const data = products.map((p) => ({
-      ...p,
-      stock_total: stockMap.get(p._id.toString()) ?? 0,
-      prix_actuel: priceMap.get(p._id.toString()) ?? null,
-    }));
+    const data = products.map((p) => {
+      const id = p._id.toString();
+      const prixDefaut = resolvePrice(priceIndex, id);
+      return {
+        ...p,
+        stock_total: stockMap.get(id) ?? 0,
+        prix_actuel: prixDefaut,
+        prix_a_partir_de: prixDefaut == null ? resolveMinPrice(priceIndex, id) : null,
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -78,7 +101,10 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     const body = await request.json();
-    const product = await Product.create(body);
+    const categorie = PRODUCT_CATEGORIES.includes(body.categorie) ? body.categorie : 'autre';
+    const reference = await generateReference(categorie);
+
+    const product = await Product.create({ ...body, reference });
 
     return NextResponse.json({ success: true, data: product }, { status: 201 });
   } catch (error) {
@@ -86,4 +112,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Failed to create product' }, { status: 500 });
   }
 }
-

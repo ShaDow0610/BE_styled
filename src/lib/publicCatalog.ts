@@ -2,10 +2,10 @@ import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db/connection";
 import Product from "@/lib/models/Product";
 import ProductVariant from "@/lib/models/ProductVariant";
-import ProductPricing from "@/lib/models/ProductPricing";
 import ProductImage from "@/lib/models/ProductImage";
 import Look from "@/lib/models/Look";
 import LookItem from "@/lib/models/LookItem";
+import { buildPriceIndex, resolvePrice, resolveMinPrice } from "@/lib/priceResolver";
 
 export interface PublicProduct {
   _id: string;
@@ -13,14 +13,18 @@ export interface PublicProduct {
   reference: string;
   categorie: string;
   description: string;
+  matiere: string;
   prix: number | null;
+  prix_a_partir_de: number | null;
   image: string | null;
   variants: {
     _id: string;
     taille: string;
     couleur: string;
+    modele?: string;
     stock_quantite: number;
     sku_variante: string;
+    prix: number | null;
   }[];
 }
 
@@ -61,13 +65,9 @@ export async function getPublicProducts(filters: Filters = {}): Promise<PublicPr
   if (filters.couleur) variantQuery.couleur = filters.couleur;
   if (filters.taille) variantQuery.taille = filters.taille;
 
-  const [variants, pricing, images] = await Promise.all([
+  const [variants, priceIndex, images] = await Promise.all([
     ProductVariant.find(variantQuery).lean(),
-    ProductPricing.aggregate([
-      { $match: { product_id: { $in: productIds } } },
-      { $sort: { date_effet: -1 } },
-      { $group: { _id: "$product_id", prix_revente_final: { $first: "$prix_revente_final" } } },
-    ]),
+    buildPriceIndex(productIds),
     ProductImage.find({ product_id: { $in: productIds } }).sort({ ordre_affichage: 1 }).lean(),
   ]);
 
@@ -78,8 +78,6 @@ export async function getPublicProducts(filters: Filters = {}): Promise<PublicPr
     variantsByProduct.get(key)!.push(v);
   }
 
-  const priceMap = new Map(pricing.map((p) => [p._id.toString(), p.prix_revente_final]));
-
   const imageByProduct = new Map<string, string>();
   for (const img of images) {
     const key = img.product_id.toString();
@@ -88,21 +86,27 @@ export async function getPublicProducts(filters: Filters = {}): Promise<PublicPr
 
   return products
     .map((p) => {
-      const productVariants = variantsByProduct.get(p._id.toString()) ?? [];
+      const id = p._id.toString();
+      const productVariants = variantsByProduct.get(id) ?? [];
+      const prixDefaut = resolvePrice(priceIndex, id);
       return {
-        _id: p._id.toString(),
+        _id: id,
         nom: p.nom,
         reference: p.reference,
         categorie: p.categorie,
         description: p.description,
-        prix: priceMap.get(p._id.toString()) ?? null,
-        image: imageByProduct.get(p._id.toString()) ?? null,
+        matiere: p.matiere || "",
+        prix: prixDefaut,
+        prix_a_partir_de: prixDefaut == null ? resolveMinPrice(priceIndex, id) : null,
+        image: imageByProduct.get(id) ?? null,
         variants: productVariants.map((v) => ({
           _id: v._id.toString(),
           taille: v.taille,
           couleur: v.couleur,
+          modele: v.modele,
           stock_quantite: v.stock_quantite,
           sku_variante: v.sku_variante,
+          prix: resolvePrice(priceIndex, id, v.modele),
         })),
       };
     })
@@ -121,13 +125,15 @@ export async function getPublicProduct(id: string): Promise<PublicProductDetail 
   const product = await Product.findOne({ _id: id, statut: "disponible" }).lean();
   if (!product) return null;
 
-  const [variants, pricingHistory, images] = await Promise.all([
+  const [variants, priceIndex, images] = await Promise.all([
     ProductVariant.find({ product_id: id }).lean(),
-    ProductPricing.find({ product_id: id }).sort({ date_effet: -1 }).limit(1).lean(),
+    buildPriceIndex([product._id]),
     ProductImage.find({ product_id: id }).sort({ ordre_affichage: 1 }).lean(),
   ]);
 
   if (!variants.some((v) => v.stock_quantite > 0)) return null;
+
+  const prixDefaut = resolvePrice(priceIndex, id);
 
   return {
     _id: product._id.toString(),
@@ -135,15 +141,19 @@ export async function getPublicProduct(id: string): Promise<PublicProductDetail 
     reference: product.reference,
     categorie: product.categorie,
     description: product.description,
-    prix: pricingHistory[0]?.prix_revente_final ?? null,
+    matiere: product.matiere || "",
+    prix: prixDefaut,
+    prix_a_partir_de: prixDefaut == null ? resolveMinPrice(priceIndex, id) : null,
     image: images[0]?.url ?? null,
     images: images.map((img) => img.url),
     variants: variants.map((v) => ({
       _id: v._id.toString(),
       taille: v.taille,
       couleur: v.couleur,
+      modele: v.modele,
       stock_quantite: v.stock_quantite,
       sku_variante: v.sku_variante,
+      prix: resolvePrice(priceIndex, id, v.modele),
     })),
   };
 }

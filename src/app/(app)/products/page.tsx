@@ -35,7 +35,6 @@ const STATUTS = [
 
 const EMPTY_FORM = {
   nom: "",
-  reference: "",
   categorie: CATEGORIES[0],
   origine: "import_chine" as "import_chine" | "local",
   poids_kg: "",
@@ -151,15 +150,6 @@ export default function ProductsPage() {
               required
               value={form.nom}
               onChange={(e) => setForm({ ...form, nom: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Référence (SKU racine)</label>
-            <input
-              required
-              value={form.reference}
-              onChange={(e) => setForm({ ...form, reference: e.target.value })}
               className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
             />
           </div>

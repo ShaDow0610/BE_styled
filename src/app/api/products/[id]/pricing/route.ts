@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import ProductPricing from '@/lib/models/ProductPricing';
-import { calculatePricing } from '@/lib/pricing';
+import { calculatePricing, calculatePricingFromSellingPrice } from '@/lib/pricing';
 import { canWrite, getRole } from '@/lib/authz';
 
 type Params = { params: Promise<{ id: string }> };
@@ -39,34 +39,43 @@ export async function POST(request: NextRequest, { params }: Params) {
       cout_packaging,
       cout_main_oeuvre,
       marge_pourcentage,
+      prix_revente_final: prixVenteSaisi,
+      modele,
       raison_changement,
     } = body;
 
-    // Le calcul est toujours refait côté serveur — toute valeur pré-calculée
-    // envoyée par le client est ignorée (cahier des charges §4).
-    const { prix_revient_total, prix_revente_final } = calculatePricing({
+    const costs = {
       cout_achat,
       taux_change_applique,
-      cout_transport,
-      cout_douane,
-      cout_packaging,
-      cout_main_oeuvre,
-      marge_pourcentage,
-    });
+      cout_transport: cout_transport || 0,
+      cout_douane: cout_douane || 0,
+      cout_packaging: cout_packaging || 0,
+      cout_main_oeuvre: cout_main_oeuvre || 0,
+    };
+
+    // Le calcul est toujours refait côté serveur — toute valeur pré-calculée
+    // envoyée par le client est ignorée (cahier des charges §4). Deux sens
+    // possibles : on fournit la marge (calcul classique) ou directement le
+    // prix de vente souhaité (la marge est alors déduite).
+    const { prix_revient_total, prix_revente_final, marge_pourcentage: margeCalculee } =
+      prixVenteSaisi != null
+        ? calculatePricingFromSellingPrice(costs, Number(prixVenteSaisi))
+        : calculatePricing({ ...costs, marge_pourcentage: Number(marge_pourcentage) });
 
     const pricing = await ProductPricing.create({
       product_id: id,
+      modele: modele || null,
       date_effet: new Date(),
       cout_achat,
       devise_achat,
       taux_change_applique,
-      cout_transport,
+      cout_transport: costs.cout_transport,
       mode_transport,
       delai_estime_jours,
-      cout_douane,
-      cout_packaging,
-      cout_main_oeuvre,
-      marge_pourcentage,
+      cout_douane: costs.cout_douane,
+      cout_packaging: costs.cout_packaging,
+      cout_main_oeuvre: costs.cout_main_oeuvre,
+      marge_pourcentage: margeCalculee,
       prix_revient_total,
       prix_revente_final,
       raison_changement,
