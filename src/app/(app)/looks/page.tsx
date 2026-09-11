@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { formatXAF } from "@/lib/currency";
 
 interface Look {
   _id: string;
@@ -156,7 +157,7 @@ export default function LooksPage() {
               <div className="p-4">
                 <h3 className="text-lg font-semibold text-ink">{look.nom}</h3>
                 <p className="text-ink-soft/70 text-sm mt-1">{look.item_count} article(s)</p>
-                <p className="text-xl font-bold text-ink mt-2">${look.prix_pack}</p>
+                <p className="text-xl font-bold text-ink mt-2">{formatXAF(look.prix_pack)}</p>
               </div>
             </Link>
           ))}

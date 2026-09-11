@@ -22,3 +22,9 @@ export function formatPrice(xafAmount: number | null | undefined, currency: Curr
   if (currency === 'USD') return USD_FORMATTER.format(converted);
   return EUR_FORMATTER.format(converted);
 }
+
+/** Back-office : toujours XAF brut, pas de sélecteur de devise. */
+export function formatXAF(amount: number | null | undefined): string {
+  if (amount == null) return '—';
+  return `${XAF_FORMATTER.format(amount)} FCFA`;
+}

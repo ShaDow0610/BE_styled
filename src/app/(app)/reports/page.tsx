@@ -14,6 +14,7 @@ import {
   Tooltip,
 } from "recharts";
 import { useUserRole } from "@/lib/useUserRole";
+import { formatXAF } from "@/lib/currency";
 
 const PRODUCT_CATEGORIES = [
   "pantalon", "chemise", "tricot", "culotte", "bracelet",
@@ -123,7 +124,7 @@ export default function ReportsPage() {
     );
   }
 
-  const montant = (n: number) => (canSeeFinancials ? `$${n.toLocaleString()}` : "—");
+  const montant = (n: number) => (canSeeFinancials ? formatXAF(n) : "—");
 
   const filterLabel = (key: string, value: string) => {
     if (key === "fournisseur_id") return suppliers.find((s) => s._id === value)?.nom ?? value;

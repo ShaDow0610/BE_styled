@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/common/ToastProvider";
+import { formatXAF } from "@/lib/currency";
 
 interface OrderEntry {
   _id: string;
@@ -130,12 +131,12 @@ function NewInvoiceForm() {
                     <td className="py-2 pr-4 text-ink">{o.product_variant_id?.product_id?.nom ?? "Produit supprimé"}</td>
                     <td className="py-2 pr-4 text-ink-soft">{o.product_variant_id?.sku_variante}</td>
                     <td className="py-2 pr-4 text-ink-soft">{o.quantite}</td>
-                    <td className="py-2 pr-4 font-semibold text-ink">{(o.montant_total ?? 0).toLocaleString()}</td>
+                    <td className="py-2 pr-4 font-semibold text-ink">{formatXAF(o.montant_total ?? 0)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <p className="text-right font-bold text-ink mt-3">Total : {total.toLocaleString()}</p>
+            <p className="text-right font-bold text-ink mt-3">Total : {formatXAF(total)}</p>
           </div>
         )}
       </div>

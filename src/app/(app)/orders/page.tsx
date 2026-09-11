@@ -18,6 +18,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useToast } from "@/components/common/ToastProvider";
 import { useUserRole } from "@/lib/useUserRole";
+import { formatXAF } from "@/lib/currency";
 
 const CATEGORY_ICONS: Record<string, IconDefinition> = {
   pantalon: faSocks,
@@ -548,7 +549,7 @@ function NouvelleVenteModal({
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink truncate">{p.nom}</p>
                       {p.prix_actuel != null && (
-                        <p className="text-xs text-ink-soft/70">{p.prix_actuel.toLocaleString()}</p>
+                        <p className="text-xs text-ink-soft/70">{formatXAF(p.prix_actuel)}</p>
                       )}
                     </div>
                   </button>
@@ -707,8 +708,8 @@ function PaymentSection({
       {order.montant_total != null ? (
         <>
           <div className="flex justify-between text-[10px] text-ink-soft/70 mb-1">
-            <span>Encaissé ${encaisse.toLocaleString()} / ${total.toLocaleString()}</span>
-            {reste > 0 && <span className="text-amber-600">Reste ${reste.toLocaleString()}</span>}
+            <span>Encaissé {formatXAF(encaisse)} / {formatXAF(total)}</span>
+            {reste > 0 && <span className="text-amber-600">Reste {formatXAF(reste)}</span>}
           </div>
           <div className="w-full h-1.5 bg-ivory-soft rounded-full overflow-hidden">
             <div

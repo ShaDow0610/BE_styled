@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { formatXAF } from "@/lib/currency";
 
 interface ProductOption {
   _id: string;
@@ -168,7 +169,7 @@ export default function LookDetailPage() {
           )}
           <div>
             <h1 className="font-serif text-3xl text-ink">{look.nom}</h1>
-            <p className="text-ink-soft/70 text-sm">Prix pack: ${look.prix_pack.toLocaleString()}</p>
+            <p className="text-ink-soft/70 text-sm">Prix pack: {formatXAF(look.prix_pack)}</p>
             {canWrite && (
               <label className="text-xs text-ink underline hover:no-underline cursor-pointer mt-1 inline-block">
                 {isUploadingPhoto ? "Téléversement..." : "Changer la photo"}
@@ -234,7 +235,7 @@ export default function LookDetailPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-ink-soft">
-                    {item.prix != null ? `$${item.prix.toLocaleString()}` : "Prix non défini"}
+                    {item.prix != null ? formatXAF(item.prix) : "Prix non défini"}
                   </span>
                   {canWrite && (
                     <button onClick={() => handleRemoveItem(item._id)} className="text-red-600 hover:underline text-xs">

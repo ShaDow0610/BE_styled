@@ -26,6 +26,7 @@ import {
   faCartShopping,
   faCircleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
+import { formatXAF } from "@/lib/currency";
 
 interface MargeParCategorie {
   categorie: string;
@@ -187,7 +188,7 @@ export default function DashboardPage() {
   }
 
   const valeurImmobilisee = stats.valeurParStatut.filter((v) => v.statut !== "disponible");
-  const montant = (n: number) => (canSeeFinancials ? `$${n.toLocaleString()}` : "—");
+  const montant = (n: number) => (canSeeFinancials ? formatXAF(n) : "—");
 
   return (
     <div className="container mx-auto px-4 py-8">

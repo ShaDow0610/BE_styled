@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { formatXAF } from "@/lib/currency";
 
 interface InvoiceLine {
   produit_nom: string;
@@ -124,8 +125,8 @@ export default function InvoiceDetailPage() {
                 <td className="py-2 pr-4 text-ink">{l.produit_nom}</td>
                 <td className="py-2 pr-4 text-ink-soft">{l.sku_variante}</td>
                 <td className="py-2 pr-4 text-ink-soft">{l.quantite}</td>
-                <td className="py-2 pr-4 text-ink-soft">{l.prix_unitaire.toLocaleString()}</td>
-                <td className="py-2 pr-4 text-ink text-right font-medium">{l.montant_total.toLocaleString()}</td>
+                <td className="py-2 pr-4 text-ink-soft">{formatXAF(l.prix_unitaire)}</td>
+                <td className="py-2 pr-4 text-ink text-right font-medium">{formatXAF(l.montant_total)}</td>
               </tr>
             ))}
           </tbody>
@@ -134,7 +135,7 @@ export default function InvoiceDetailPage() {
         <div className="flex justify-end">
           <div className="text-right">
             <p className="text-xs uppercase tracking-wide text-ink-soft/60">Total</p>
-            <p className="text-2xl font-bold text-ink">{invoice.montant_total.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-ink">{formatXAF(invoice.montant_total)}</p>
           </div>
         </div>
       </div>

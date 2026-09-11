@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useUserRole } from "@/lib/useUserRole";
 import { useToast } from "@/components/common/ToastProvider";
 import EditableSelect from "@/components/common/EditableSelect";
+import { formatXAF } from "@/lib/currency";
 
 const CATEGORIES = [
   "pantalon", "chemise", "tricot", "culotte", "bracelet",
@@ -602,7 +603,7 @@ function PrixTab({
             />
           </Field>
 
-          <Field label={priceMode === "marge" ? "Marge (%)" : "Prix de vente ($)"}>
+          <Field label={priceMode === "marge" ? "Marge (%)" : "Prix de vente (FCFA)"}>
             <div className="flex gap-2">
               <div className="flex border border-silver-soft rounded-lg overflow-hidden shrink-0">
                 <button
@@ -615,7 +616,7 @@ function PrixTab({
                   type="button"
                   onClick={() => setPriceMode("prix")}
                   className={`px-3 py-2 text-sm ${priceMode === "prix" ? "bg-ink text-ivory" : "text-ink-soft"}`}>
-                  Prix $
+                  Prix FCFA
                 </button>
               </div>
               {priceMode === "marge" ? (
@@ -709,12 +710,12 @@ function PrixTab({
           <div className="mt-4 bg-ivory-soft rounded-lg p-4 flex gap-8">
             <div>
               <p className="text-xs text-ink-soft/70">Prix de revient total</p>
-              <p className="text-2xl font-bold text-ink">${preview.prix_revient_total}</p>
+              <p className="text-2xl font-bold text-ink">{formatXAF(preview.prix_revient_total)}</p>
             </div>
             <div>
               <p className="text-xs text-ink-soft/70">{priceMode === "marge" ? "Prix de revente final" : "Marge"}</p>
               <p className="text-2xl font-bold text-ink">
-                {priceMode === "marge" ? `$${preview.prix_revente_final}` : `${preview.marge_pourcentage}%`}
+                {priceMode === "marge" ? formatXAF(preview.prix_revente_final) : `${preview.marge_pourcentage}%`}
               </p>
             </div>
           </div>
@@ -755,9 +756,9 @@ function PrixTab({
                       {new Date(h.date_effet).toLocaleDateString("fr-FR")}
                     </td>
                     <td className="py-2 pr-4 text-ink-soft">{h.modele || "Défaut"}</td>
-                    <td className="py-2 pr-4 text-ink">${h.prix_revient_total}</td>
+                    <td className="py-2 pr-4 text-ink">{formatXAF(h.prix_revient_total)}</td>
                     <td className="py-2 pr-4 text-ink">{h.marge_pourcentage}%</td>
-                    <td className="py-2 pr-4 font-semibold text-ink">${h.prix_revente_final}</td>
+                    <td className="py-2 pr-4 font-semibold text-ink">{formatXAF(h.prix_revente_final)}</td>
                     <td className="py-2 pr-4 text-ink-soft/70">{h.raison_changement || "—"}</td>
                   </tr>
                 ))}

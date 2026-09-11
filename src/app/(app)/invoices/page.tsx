@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { formatXAF } from "@/lib/currency";
 
 interface InvoiceListItem {
   _id: string;
@@ -77,7 +78,7 @@ export default function InvoicesPage() {
                       {new Date(i.date_facture).toLocaleDateString("fr-FR")}
                     </td>
                     <td className="py-2 pr-4 text-ink-soft">{i.client_nom}</td>
-                    <td className="py-2 pr-4 font-semibold text-ink">{i.montant_total.toLocaleString()}</td>
+                    <td className="py-2 pr-4 font-semibold text-ink">{formatXAF(i.montant_total)}</td>
                     <td className="py-2 pr-4">
                       <Link href={`/invoices/${i._id}`} className="text-ink underline hover:no-underline">
                         Voir / Imprimer
