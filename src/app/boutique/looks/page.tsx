@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getPublicLooks } from "@/lib/publicCatalog";
 import { buildWhatsAppLookLink } from "@/lib/whatsapp";
 import Price from "../components/Price";
@@ -19,14 +20,18 @@ export default async function LooksPage() {
         <div className="grid md:grid-cols-3 gap-6">
           {looks.map((look) => (
             <div key={look._id} className="bg-white rounded-lg shadow overflow-hidden">
-              {look.photo_couverture ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={look.photo_couverture} alt={look.nom} className="w-full h-56 object-cover bg-ivory-soft" />
-              ) : (
-                <div className="w-full h-56 bg-ivory-soft" />
-              )}
+              <Link href={`/boutique/looks/${look._id}`}>
+                {look.photo_couverture ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={look.photo_couverture} alt={look.nom} className="w-full h-56 object-cover bg-ivory-soft" />
+                ) : (
+                  <div className="w-full h-56 bg-ivory-soft" />
+                )}
+              </Link>
               <div className="p-5">
-                <h3 className="font-serif text-xl text-ink">{look.nom}</h3>
+                <Link href={`/boutique/looks/${look._id}`}>
+                  <h3 className="font-serif text-xl text-ink hover:text-ink-soft transition-colors">{look.nom}</h3>
+                </Link>
                 <p className="text-ink-soft/70 text-sm mt-1">{look.item_count} article(s)</p>
                 <Price xaf={look.prix_pack} className="block text-2xl font-bold text-ink mt-2" />
                 <a

@@ -25,6 +25,9 @@ export interface IOrderTracking extends Document {
   // modifié plusieurs fois après avoir atteint son état terminal.
   stock_applique: boolean;
   date_maj: Date;
+  // Renseigné une fois la ligne incluse dans une facture — empêche de la
+  // sélectionner une seconde fois (double facturation).
+  facture_id?: mongoose.Schema.Types.ObjectId;
 }
 
 const OrderTrackingSchema = new Schema<IOrderTracking>({
@@ -36,6 +39,7 @@ const OrderTrackingSchema = new Schema<IOrderTracking>({
   montant_total: { type: Number, default: null },
   stock_applique: { type: Boolean, default: false },
   date_maj: { type: Date, default: Date.now },
+  facture_id: { type: Schema.Types.ObjectId, ref: 'Invoice', default: null },
 });
 
 OrderTrackingSchema.index({ statut: 1 });

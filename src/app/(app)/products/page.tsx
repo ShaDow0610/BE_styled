@@ -5,9 +5,36 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import ProductList, { ProductListItem } from "@/components/dashboard/ProductList";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPlus, faSearch } from "@fortawesome/free-solid-svg-icons";
+import {
+  faPlus,
+  faSearch,
+  faShirt,
+  faSocks,
+  faRing,
+  faGem,
+  faClock,
+  faShoePrints,
+  faHatCowboy,
+  faGlasses,
+  faTags,
+  type IconDefinition,
+} from "@fortawesome/free-solid-svg-icons";
 import { useUserRole } from "@/lib/useUserRole";
 import { useToast } from "@/components/common/ToastProvider";
+
+const CATEGORY_ICONS: Record<string, IconDefinition> = {
+  pantalon: faSocks,
+  chemise: faShirt,
+  tricot: faShirt,
+  culotte: faSocks,
+  bracelet: faGem,
+  montre: faClock,
+  chaussure: faShoePrints,
+  bague: faRing,
+  chapeau: faHatCowboy,
+  lunette: faGlasses,
+  autre: faTags,
+};
 
 const CATEGORIES = [
   "pantalon",
@@ -103,7 +130,7 @@ export default function ProductsPage() {
         throw new Error(data.error || "Erreur lors de la création du produit");
       }
       toast.success("Produit créé");
-      router.push(`/products/${data.data._id}`);
+      router.push(`/products/${data.data._id}?tab=variantes`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur inconnue";
       setFormError(message);
@@ -153,30 +180,42 @@ export default function ProductsPage() {
               className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
             />
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-ink-soft mb-2">Catégorie</label>
-            <select
-              value={form.categorie}
-              onChange={(e) => setForm({ ...form, categorie: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
+            <div className="flex flex-wrap gap-2">
               {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setForm({ ...form, categorie: cat })}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm capitalize transition-colors ${
+                    form.categorie === cat
+                      ? "bg-ink text-ivory"
+                      : "border border-silver-soft text-ink-soft hover:border-ink hover:text-ink"
+                  }`}>
+                  <FontAwesomeIcon icon={CATEGORY_ICONS[cat] || faTags} className="w-3.5 h-3.5" />
                   {cat}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-ink-soft mb-2">Origine</label>
-            <select
-              value={form.origine}
-              onChange={(e) =>
-                setForm({ ...form, origine: e.target.value as "import_chine" | "local" })
-              }
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
-              <option value="import_chine">Import Chine</option>
-              <option value="local">Local</option>
-            </select>
+            <div className="flex gap-2">
+              {(["import_chine", "local"] as const).map((o) => (
+                <button
+                  key={o}
+                  type="button"
+                  onClick={() => setForm({ ...form, origine: o })}
+                  className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                    form.origine === o
+                      ? "bg-ink text-ivory"
+                      : "border border-silver-soft text-ink-soft hover:border-ink hover:text-ink"
+                  }`}>
+                  {o === "import_chine" ? "Import Chine" : "Local"}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-ink-soft mb-2">Poids (kg)</label>

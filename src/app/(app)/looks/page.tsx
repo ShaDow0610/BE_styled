@@ -21,7 +21,31 @@ export default function LooksPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
+    setIsUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Échec du téléversement");
+      }
+      setForm((f) => ({ ...f, photo_couverture: data.data.url }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setError(message);
+    } finally {
+      setIsUploading(false);
+      e.target.value = "";
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -90,13 +114,18 @@ export default function LooksPage() {
               className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Photo de couverture (URL)</label>
-            <input value={form.photo_couverture} onChange={(e) => setForm({ ...form, photo_couverture: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
+            <label className="block text-sm font-medium text-ink-soft mb-2">Photo de couverture</label>
+            <input type="file" accept="image/*" onChange={handleFileChange}
+              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink file:mr-3 file:px-3 file:py-1 file:rounded file:border-0 file:bg-ink file:text-ivory file:text-sm" />
+            {isUploading && <p className="text-xs text-ink-soft/70 mt-1">Téléversement...</p>}
+            {form.photo_couverture && !isUploading && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={form.photo_couverture} alt="Aperçu" className="mt-2 h-16 w-16 object-cover rounded border border-silver-soft" />
+            )}
           </div>
           {error && <p className="md:col-span-3 text-sm text-red-600">{error}</p>}
           <div className="md:col-span-3">
-            <button type="submit" className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
+            <button type="submit" disabled={isUploading} className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors disabled:opacity-50">
               Créer et ajouter des articles
             </button>
           </div>

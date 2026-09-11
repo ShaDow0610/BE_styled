@@ -18,6 +18,7 @@ interface VariantOption {
 
 interface LookItem {
   _id: string;
+  prix: number | null;
   product_variant_id: {
     _id: string;
     taille: string;
@@ -48,6 +49,31 @@ export default function LookDetailPage() {
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedVariant, setSelectedVariant] = useState("");
   const [error, setError] = useState("");
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingPhoto(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Échec du téléversement");
+      await fetch(`/api/looks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photo_couverture: data.data.url }),
+      });
+      load();
+    } catch {
+      // silencieux : l'utilisateur peut réessayer
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = "";
+    }
+  };
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -132,10 +158,24 @@ export default function LookDetailPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="font-serif text-3xl text-ink">{look.nom}</h1>
-          <p className="text-ink-soft/70 text-sm">Prix pack: ${look.prix_pack}</p>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          {look.photo_couverture ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={look.photo_couverture} alt={look.nom} className="h-16 w-16 object-cover rounded border border-silver-soft" />
+          ) : (
+            <div className="h-16 w-16 rounded bg-ivory-soft border border-silver-soft" />
+          )}
+          <div>
+            <h1 className="font-serif text-3xl text-ink">{look.nom}</h1>
+            <p className="text-ink-soft/70 text-sm">Prix pack: ${look.prix_pack.toLocaleString()}</p>
+            {canWrite && (
+              <label className="text-xs text-ink underline hover:no-underline cursor-pointer mt-1 inline-block">
+                {isUploadingPhoto ? "Téléversement..." : "Changer la photo"}
+                <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={isUploadingPhoto} className="hidden" />
+              </label>
+            )}
+          </div>
         </div>
         <Link href="/looks" className="px-4 py-2 border border-silver-soft text-ink-soft rounded-lg hover:bg-ivory-soft transition-colors">
           ← Retour
@@ -192,11 +232,16 @@ export default function LookDetailPage() {
                     {item.product_variant_id.sku_variante} · {item.product_variant_id.taille}/{item.product_variant_id.couleur}
                   </p>
                 </div>
-                {canWrite && (
-                  <button onClick={() => handleRemoveItem(item._id)} className="text-red-600 hover:underline text-xs">
-                    Retirer
-                  </button>
-                )}
+                <div className="flex items-center gap-4">
+                  <span className="text-ink-soft">
+                    {item.prix != null ? `$${item.prix.toLocaleString()}` : "Prix non défini"}
+                  </span>
+                  {canWrite && (
+                    <button onClick={() => handleRemoveItem(item._id)} className="text-red-600 hover:underline text-xs">
+                      Retirer
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

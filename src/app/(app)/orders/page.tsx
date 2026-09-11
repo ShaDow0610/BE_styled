@@ -2,19 +2,53 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faShirt,
+  faSocks,
+  faRing,
+  faGem,
+  faClock,
+  faShoePrints,
+  faHatCowboy,
+  faGlasses,
+  faTags,
+  type IconDefinition,
+} from "@fortawesome/free-solid-svg-icons";
 import { useToast } from "@/components/common/ToastProvider";
 import { useUserRole } from "@/lib/useUserRole";
+
+const CATEGORY_ICONS: Record<string, IconDefinition> = {
+  pantalon: faSocks,
+  chemise: faShirt,
+  tricot: faShirt,
+  culotte: faSocks,
+  bracelet: faGem,
+  montre: faClock,
+  chaussure: faShoePrints,
+  bague: faRing,
+  chapeau: faHatCowboy,
+  lunette: faGlasses,
+  autre: faTags,
+};
 
 interface ProductOption {
   _id: string;
   nom: string;
+  categorie: string;
+  stock_total: number;
+  prix_actuel: number | null;
 }
 
 interface VariantOption {
   _id: string;
   taille: string;
   couleur: string;
+  modele?: string;
+  stock_quantite: number;
   sku_variante: string;
+  prix: number | null;
 }
 
 interface OrderEntry {
@@ -24,6 +58,7 @@ interface OrderEntry {
   quantite: number;
   montant_total?: number | null;
   montant_encaisse?: number;
+  facture_id?: string | null;
   product_variant_id: {
     sku_variante: string;
     taille: string;
@@ -53,16 +88,18 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderEntry[]>([]);
   const [canWrite, setCanWrite] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [showReapproForm, setShowReapproForm] = useState(false);
+  const [showVenteModal, setShowVenteModal] = useState(false);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [variants, setVariants] = useState<VariantOption[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedVariant, setSelectedVariant] = useState("");
-  const [selectedType, setSelectedType] = useState<"reappro_fournisseur" | "commande_client">("reappro_fournisseur");
   const [quantite, setQuantite] = useState("1");
   const [error, setError] = useState("");
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [factureMode, setFactureMode] = useState(false);
+  const [selectedForInvoice, setSelectedForInvoice] = useState<Set<string>>(new Set());
   const draggedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -79,7 +116,17 @@ export default function OrdersPage() {
     load();
     fetch("/api/products?limit=100")
       .then((r) => r.json())
-      .then((d) => setProducts(d.data.map((p: { _id: string; nom: string }) => ({ _id: p._id, nom: p.nom }))));
+      .then((d) =>
+        setProducts(
+          (d.data || []).map((p: ProductOption) => ({
+            _id: p._id,
+            nom: p.nom,
+            categorie: p.categorie,
+            stock_total: p.stock_total,
+            prix_actuel: p.prix_actuel,
+          }))
+        )
+      );
   }, [router]);
 
   useEffect(() => {
@@ -102,7 +149,7 @@ export default function OrdersPage() {
     }
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreateReappro = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (!selectedVariant) {
@@ -114,7 +161,7 @@ export default function OrdersPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         product_variant_id: selectedVariant,
-        type: selectedType,
+        type: "reappro_fournisseur",
         quantite: Number(quantite) || 1,
       }),
     });
@@ -127,7 +174,7 @@ export default function OrdersPage() {
     setSelectedProduct("");
     setSelectedVariant("");
     setQuantite("1");
-    setShowForm(false);
+    setShowReapproForm(false);
     toast.success("Entrée créée");
     load();
   };
@@ -148,16 +195,39 @@ export default function OrdersPage() {
     updateStatus(orderId, statut);
   };
 
+  const toggleSelected = (orderId: string) => {
+    setSelectedForInvoice((prev) => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      return next;
+    });
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <h1 className="font-serif text-3xl text-ink">Suivi des commandes</h1>
         {canWrite && (
-          <button
-            onClick={() => setShowForm((v) => !v)}
-            className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
-            Nouvelle entrée
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => { setFactureMode((v) => !v); setSelectedForInvoice(new Set()); }}
+              className={`px-6 py-2 rounded-lg transition-colors ${
+                factureMode ? "bg-ink text-ivory" : "border border-silver-soft text-ink-soft hover:bg-ivory-soft"
+              }`}>
+              {factureMode ? "Annuler la sélection" : "Mode facturation"}
+            </button>
+            <button
+              onClick={() => setShowVenteModal(true)}
+              className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
+              Nouvelle vente
+            </button>
+            <button
+              onClick={() => setShowReapproForm((v) => !v)}
+              className="px-6 py-2 border border-silver-soft text-ink-soft rounded-lg hover:bg-ivory-soft transition-colors">
+              Réappro fournisseur
+            </button>
+          </div>
         )}
       </div>
 
@@ -171,8 +241,8 @@ export default function OrdersPage() {
         />
       </div>
 
-      {showForm && (
-        <form onSubmit={handleCreate} className="bg-white rounded-lg shadow p-6 mb-6 grid md:grid-cols-5 gap-4">
+      {showReapproForm && (
+        <form onSubmit={handleCreateReappro} className="bg-white rounded-lg shadow p-6 mb-6 grid md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-ink-soft mb-2">Produit</label>
             <select
@@ -199,16 +269,6 @@ export default function OrdersPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Type</label>
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value as typeof selectedType)}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
-              <option value="reappro_fournisseur">Réappro fournisseur</option>
-              <option value="commande_client">Commande client</option>
-            </select>
-          </div>
-          <div>
             <label className="block text-sm font-medium text-ink-soft mb-2">Quantité</label>
             <input
               type="number"
@@ -223,8 +283,16 @@ export default function OrdersPage() {
               Créer
             </button>
           </div>
-          {error && <p className="md:col-span-5 text-sm text-red-600">{error}</p>}
+          {error && <p className="md:col-span-4 text-sm text-red-600">{error}</p>}
         </form>
+      )}
+
+      {showVenteModal && (
+        <NouvelleVenteModal
+          products={products}
+          onClose={() => setShowVenteModal(false)}
+          onCreated={load}
+        />
       )}
 
       {isLoading ? (
@@ -254,12 +322,34 @@ export default function OrdersPage() {
                       o.product_variant_id?.sku_variante?.toLowerCase().includes(term)
                     );
                   })
-                  .map((o) => (
+                  .map((o) => {
+                    const eligible = o.type === "commande_client" && o.montant_total != null && !o.facture_id;
+                    return (
                     <div
                       key={o._id}
-                      draggable={canWrite}
+                      draggable={canWrite && !factureMode}
                       onDragStart={() => { draggedIdRef.current = o._id; }}
-                      className={`bg-white rounded-lg shadow p-3 text-xs ${canWrite ? "cursor-move" : ""}`}>
+                      className={`bg-white rounded-lg shadow p-3 text-xs ${canWrite && !factureMode ? "cursor-move" : ""}`}>
+                      {factureMode && o.type === "commande_client" && (
+                        <div
+                          className="flex items-center justify-between mb-2"
+                          onClick={(e) => e.stopPropagation()}>
+                          <label className="flex items-center gap-1.5 text-[11px] text-ink-soft">
+                            <input
+                              type="checkbox"
+                              disabled={!eligible}
+                              checked={selectedForInvoice.has(o._id)}
+                              onChange={() => toggleSelected(o._id)}
+                            />
+                            Sélectionner
+                          </label>
+                          {o.facture_id && (
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px]">
+                              Facturé
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <p className="font-medium text-ink">
                         {o.product_variant_id?.product_id?.nom ?? "Produit supprimé"}
                       </p>
@@ -293,12 +383,269 @@ export default function OrdersPage() {
                         />
                       )}
                     </div>
-                  ))}
+                  );
+                  })}
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {factureMode && selectedForInvoice.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-ink text-ivory shadow-lg py-4 px-6 flex flex-col sm:flex-row justify-between items-center gap-3 z-30">
+          <span className="text-sm">{selectedForInvoice.size} commande(s) sélectionnée(s)</span>
+          <Link
+            href={`/orders/invoice/new?ids=${Array.from(selectedForInvoice).join(",")}`}
+            className="px-6 py-2 bg-ivory text-ink rounded-lg font-semibold hover:bg-silver-soft transition-colors">
+            Générer une facture ({selectedForInvoice.size})
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NouvelleVenteModal({
+  products,
+  onClose,
+  onCreated,
+}: {
+  products: ProductOption[];
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const toast = useToast();
+  const [search, setSearch] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<ProductOption | null>(null);
+  const [variants, setVariants] = useState<VariantOption[]>([]);
+  const [isLoadingVariants, setIsLoadingVariants] = useState(false);
+  const [selectedModele, setSelectedModele] = useState<string | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<VariantOption | null>(null);
+  const [prix, setPrix] = useState("");
+  const [quantite, setQuantite] = useState("1");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+
+  const availableProducts = products
+    .filter((p) => p.stock_total > 0)
+    .filter((p) => p.nom.toLowerCase().includes(search.toLowerCase()));
+
+  const handlePickProduct = async (product: ProductOption) => {
+    setSelectedProduct(product);
+    setSelectedModele(null);
+    setSelectedVariant(null);
+    setIsLoadingVariants(true);
+    try {
+      const res = await fetch(`/api/products/${product._id}/variants`);
+      const data = await res.json();
+      setVariants((data.data || []).filter((v: VariantOption) => v.stock_quantite > 0));
+    } finally {
+      setIsLoadingVariants(false);
+    }
+  };
+
+  const modeles = Array.from(new Set(variants.map((v) => v.modele).filter((m): m is string => !!m)));
+  const variantsAffiches = modeles.length > 0
+    ? variants.filter((v) => v.modele === selectedModele)
+    : variants;
+
+  const handlePickVariant = (variant: VariantOption) => {
+    setSelectedVariant(variant);
+    setPrix(variant.prix != null ? String(variant.prix) : "");
+  };
+
+  const reset = () => {
+    setSelectedProduct(null);
+    setVariants([]);
+    setSelectedModele(null);
+    setSelectedVariant(null);
+    setPrix("");
+    setQuantite("1");
+    setError("");
+    setCreatedOrderId(null);
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedVariant) return;
+    setError("");
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_variant_id: selectedVariant._id,
+          type: "commande_client",
+          quantite: Number(quantite) || 1,
+          prix_unitaire: Number(prix) || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Erreur lors de l'enregistrement");
+      }
+      toast.success("Vente enregistrée");
+      setCreatedOrderId(data.data._id);
+      onCreated();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-ink/60 z-40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] overflow-y-auto p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="font-serif text-2xl text-ink">Nouvelle vente</h2>
+          <button onClick={onClose} className="text-ink-soft hover:text-ink text-2xl leading-none">×</button>
+        </div>
+
+        {createdOrderId ? (
+          <div className="text-center py-8">
+            <p className="text-ink font-semibold mb-6">Vente enregistrée avec succès.</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link
+                href={`/orders/invoice/new?ids=${createdOrderId}`}
+                className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
+                Imprimer la facture
+              </Link>
+              <button
+                onClick={reset}
+                className="px-6 py-2 border border-silver-soft text-ink-soft rounded-lg hover:bg-ivory-soft transition-colors">
+                Nouvelle vente
+              </button>
+              <button
+                onClick={onClose}
+                className="px-6 py-2 border border-silver-soft text-ink-soft rounded-lg hover:bg-ivory-soft transition-colors">
+                Fermer
+              </button>
+            </div>
+          </div>
+        ) : !selectedProduct ? (
+          <>
+            <input
+              type="text"
+              placeholder="Rechercher un produit..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink mb-4"
+            />
+            {availableProducts.length === 0 ? (
+              <p className="text-ink-soft/70 text-sm">Aucun produit en stock.</p>
+            ) : (
+              <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {availableProducts.map((p) => (
+                  <button
+                    key={p._id}
+                    onClick={() => handlePickProduct(p)}
+                    className="flex items-center gap-3 p-3 border border-silver-soft rounded-lg hover:border-ink hover:bg-ivory-soft transition-colors text-left">
+                    <FontAwesomeIcon icon={CATEGORY_ICONS[p.categorie] || faTags} className="w-5 h-5 text-ink-soft shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-ink truncate">{p.nom}</p>
+                      {p.prix_actuel != null && (
+                        <p className="text-xs text-ink-soft/70">{p.prix_actuel.toLocaleString()}</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div>
+            <button
+              onClick={() => { setSelectedProduct(null); setVariants([]); }}
+              className="text-sm text-ink-soft underline hover:no-underline mb-4">
+              ← Changer de produit
+            </button>
+            <p className="font-semibold text-ink mb-4">{selectedProduct.nom}</p>
+
+            {isLoadingVariants ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ink"></div>
+              </div>
+            ) : variants.length === 0 ? (
+              <p className="text-ink-soft/70 text-sm">Aucune variante en stock pour ce produit.</p>
+            ) : (
+              <>
+                {modeles.length > 0 && !selectedModele && (
+                  <div>
+                    <p className="text-sm font-medium text-ink-soft mb-2">Modèle</p>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {modeles.map((m) => (
+                        <button
+                          key={m}
+                          onClick={() => setSelectedModele(m)}
+                          className="px-4 py-2 rounded-lg text-sm border border-silver-soft text-ink-soft hover:border-ink hover:text-ink">
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(modeles.length === 0 || selectedModele) && !selectedVariant && (
+                  <div>
+                    <p className="text-sm font-medium text-ink-soft mb-2">Taille / Couleur</p>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {variantsAffiches.map((v) => (
+                        <button
+                          key={v._id}
+                          onClick={() => handlePickVariant(v)}
+                          className="px-4 py-2 rounded-lg text-sm border border-silver-soft text-ink-soft hover:border-ink hover:text-ink">
+                          {v.taille} / {v.couleur}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedVariant && (
+                  <div className="grid sm:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-ink-soft mb-2">Prix unitaire</label>
+                      <input
+                        type="number" step="0.01" min="0"
+                        value={prix}
+                        onChange={(e) => setPrix(e.target.value)}
+                        className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-soft mb-2">Quantité</label>
+                      <input
+                        type="number" min="1"
+                        value={quantite}
+                        onChange={(e) => setQuantite(e.target.value)}
+                        className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                      />
+                    </div>
+                    {error && <p className="sm:col-span-2 text-sm text-red-600">{error}</p>}
+                    <div className="sm:col-span-2 flex gap-3">
+                      <button
+                        onClick={handleSubmit}
+                        disabled={isSaving || !prix || Number(prix) <= 0}
+                        className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors disabled:opacity-50">
+                        {isSaving ? "Enregistrement..." : "Enregistrer la vente"}
+                      </button>
+                      <button
+                        onClick={() => setSelectedVariant(null)}
+                        className="px-6 py-2 border border-silver-soft text-ink-soft rounded-lg hover:bg-ivory-soft transition-colors">
+                        Changer
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

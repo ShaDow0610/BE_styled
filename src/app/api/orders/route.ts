@@ -74,11 +74,19 @@ export async function POST(request: NextRequest) {
     let montant_total: number | null = null;
 
     if (body.type === 'commande_client') {
-      const variant = await ProductVariant.findById(body.product_variant_id).select('product_id modele');
-      if (variant) {
-        const priceIndex = await buildPriceIndex([variant.product_id]);
-        prix_unitaire = resolvePrice(priceIndex, variant.product_id.toString(), variant.modele);
-        montant_total = prix_unitaire != null ? Math.round(prix_unitaire * quantite * 100) / 100 : null;
+      const prixSaisi = Number(body.prix_unitaire);
+      if (prixSaisi > 0) {
+        // Prix ajusté manuellement au moment de la vente (négociation, prix pas
+        // encore défini au catalogue, etc.) — prioritaire sur le prix résolu.
+        prix_unitaire = Math.round(prixSaisi * 100) / 100;
+        montant_total = Math.round(prix_unitaire * quantite * 100) / 100;
+      } else {
+        const variant = await ProductVariant.findById(body.product_variant_id).select('product_id modele');
+        if (variant) {
+          const priceIndex = await buildPriceIndex([variant.product_id]);
+          prix_unitaire = resolvePrice(priceIndex, variant.product_id.toString(), variant.modele);
+          montant_total = prix_unitaire != null ? Math.round(prix_unitaire * quantite * 100) / 100 : null;
+        }
       }
     }
 

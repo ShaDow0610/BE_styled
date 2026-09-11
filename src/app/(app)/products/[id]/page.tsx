@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, useCallback } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useUserRole } from "@/lib/useUserRole";
 import { useToast } from "@/components/common/ToastProvider";
@@ -84,12 +84,29 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 export default function ProductDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
+        </div>
+      }>
+      <ProductDetailPageInner />
+    </Suspense>
+  );
+}
+
+function ProductDetailPageInner() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id as string;
   const { canWrite, canSeeFinancials, isAdmin } = useUserRole();
 
-  const [tab, setTab] = useState<Tab>("infos");
+  const initialTab = searchParams.get("tab");
+  const [tab, setTab] = useState<Tab>(
+    initialTab === "prix" || initialTab === "variantes" || initialTab === "images" ? initialTab : "infos"
+  );
   const [product, setProduct] = useState<Product | null>(null);
   const [variants, setVariants] = useState<Variant[]>([]);
   const [pricingHistory, setPricingHistory] = useState<Pricing[]>([]);
@@ -446,6 +463,7 @@ function PrixTab({
   const [form, setForm] = useState(PRICING_FORM_DEFAULTS);
   const [costs, setCosts] = useState(COST_TOGGLE_DEFAULTS);
   const [priceMode, setPriceMode] = useState<"marge" | "prix">("marge");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [preview, setPreview] = useState<{ prix_revient_total: number; prix_revente_final: number; marge_pourcentage: number } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -548,15 +566,17 @@ function PrixTab({
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6">
         <h2 className="font-serif text-xl text-ink mb-4">Calculateur de prix</h2>
         <div className="grid md:grid-cols-3 gap-4">
-          <Field label="Modèle concerné">
-            <select
-              value={form.modele}
-              onChange={(e) => setForm({ ...form, modele: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
-              <option value="">Tous modèles (prix par défaut)</option>
-              {modeles.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </Field>
+          {modeles.length > 0 && (
+            <Field label="Modèle concerné">
+              <select
+                value={form.modele}
+                onChange={(e) => setForm({ ...form, modele: e.target.value })}
+                className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
+                <option value="">Tous modèles (prix par défaut)</option>
+                {modeles.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Coût achat">
             <input
               type="number" step="0.01" min="0" required
@@ -581,51 +601,6 @@ function PrixTab({
               className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
             />
           </Field>
-          <Field label="Mode de transport">
-            <select
-              value={form.mode_transport}
-              onChange={(e) => setForm({ ...form, mode_transport: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
-              {MODES_TRANSPORT.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </Field>
-          <Field label="Délai estimé (jours)">
-            <input
-              type="number" min="0"
-              value={form.delai_estime_jours}
-              onChange={(e) => setForm({ ...form, delai_estime_jours: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-            />
-          </Field>
-
-          {(Object.keys(COST_TOGGLE_DEFAULTS) as CostKey[]).map((key) => (
-            <Field key={key} label={COST_LABELS[key]}>
-              <div className="flex gap-2">
-                <div className="flex border border-silver-soft rounded-lg overflow-hidden shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setCosts({ ...costs, [key]: { actif: false, valeur: "" } })}
-                    className={`px-3 py-2 text-sm ${!costs[key].actif ? "bg-ink text-ivory" : "text-ink-soft"}`}>
-                    Non
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCosts({ ...costs, [key]: { ...costs[key], actif: true } })}
-                    className={`px-3 py-2 text-sm ${costs[key].actif ? "bg-ink text-ivory" : "text-ink-soft"}`}>
-                    Oui
-                  </button>
-                </div>
-                {costs[key].actif && (
-                  <input
-                    type="number" step="0.01" min="0" autoFocus
-                    value={costs[key].valeur}
-                    onChange={(e) => setCosts({ ...costs, [key]: { ...costs[key], valeur: e.target.value } })}
-                    className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-                  />
-                )}
-              </div>
-            </Field>
-          ))}
 
           <Field label={priceMode === "marge" ? "Marge (%)" : "Prix de vente ($)"}>
             <div className="flex gap-2">
@@ -661,17 +636,74 @@ function PrixTab({
             </div>
           </Field>
 
-          <div className="md:col-span-3">
-            <Field label="Raison du changement (optionnel)">
-              <input
-                value={form.raison_changement}
-                onChange={(e) => setForm({ ...form, raison_changement: e.target.value })}
-                placeholder='Ex: "hausse fret", "nouveau fournisseur"'
-                className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-              />
-            </Field>
-          </div>
+          {showAdvanced && (
+            <>
+              <Field label="Mode de transport">
+                <select
+                  value={form.mode_transport}
+                  onChange={(e) => setForm({ ...form, mode_transport: e.target.value })}
+                  className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
+                  {MODES_TRANSPORT.map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </Field>
+              <Field label="Délai estimé (jours)">
+                <input
+                  type="number" min="0"
+                  value={form.delai_estime_jours}
+                  onChange={(e) => setForm({ ...form, delai_estime_jours: e.target.value })}
+                  className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                />
+              </Field>
+
+              {(Object.keys(COST_TOGGLE_DEFAULTS) as CostKey[]).map((key) => (
+                <Field key={key} label={COST_LABELS[key]}>
+                  <div className="flex gap-2">
+                    <div className="flex border border-silver-soft rounded-lg overflow-hidden shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setCosts({ ...costs, [key]: { actif: false, valeur: "" } })}
+                        className={`px-3 py-2 text-sm ${!costs[key].actif ? "bg-ink text-ivory" : "text-ink-soft"}`}>
+                        Non
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCosts({ ...costs, [key]: { ...costs[key], actif: true } })}
+                        className={`px-3 py-2 text-sm ${costs[key].actif ? "bg-ink text-ivory" : "text-ink-soft"}`}>
+                        Oui
+                      </button>
+                    </div>
+                    {costs[key].actif && (
+                      <input
+                        type="number" step="0.01" min="0" autoFocus
+                        value={costs[key].valeur}
+                        onChange={(e) => setCosts({ ...costs, [key]: { ...costs[key], valeur: e.target.value } })}
+                        className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                      />
+                    )}
+                  </div>
+                </Field>
+              ))}
+
+              <div className="md:col-span-3">
+                <Field label="Raison du changement (optionnel)">
+                  <input
+                    value={form.raison_changement}
+                    onChange={(e) => setForm({ ...form, raison_changement: e.target.value })}
+                    placeholder='Ex: "hausse fret", "nouveau fournisseur"'
+                    className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                  />
+                </Field>
+              </div>
+            </>
+          )}
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="mt-4 text-sm text-ink-soft underline hover:no-underline">
+          {showAdvanced ? "Masquer les détails avancés" : "Afficher les détails avancés"}
+        </button>
 
         {preview && (
           <div className="mt-4 bg-ivory-soft rounded-lg p-4 flex gap-8">
@@ -747,7 +779,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const VARIANT_FORM_DEFAULTS = { taille: "", couleur: "", modele: "", stock_quantite: "0", seuil_alerte: "5", sku_variante: "" };
+const VARIANT_FORM_DEFAULTS = { taille: "", couleur: "", modele: "", stock_quantite: "0", seuil_alerte: "5" };
 
 function VariantesTab({
   productId,
@@ -818,11 +850,6 @@ function VariantesTab({
         </Field>
         <Field label="Seuil d'alerte">
           <input type="number" min="0" value={form.seuil_alerte} onChange={(e) => setForm({ ...form, seuil_alerte: e.target.value })}
-            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
-        </Field>
-        <Field label="SKU variante">
-          <input required value={form.sku_variante} onChange={(e) => setForm({ ...form, sku_variante: e.target.value })}
-            placeholder="Ex: BSTY-PANT-001-M-NOIR"
             className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
         </Field>
         {error && <p className="md:col-span-3 text-sm text-red-600">{error}</p>}
@@ -898,7 +925,32 @@ function ImagesTab({
   const toast = useToast();
   const [form, setForm] = useState(IMAGE_FORM_DEFAULTS);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
+    setIsUploading(true);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Échec du téléversement");
+      }
+      setForm((f) => ({ ...f, url: data.data.url }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsUploading(false);
+      e.target.value = "";
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -933,9 +985,14 @@ function ImagesTab({
     <div className="space-y-6">
       {canWrite && (
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 grid md:grid-cols-3 gap-4">
-        <Field label="URL de l'image">
-          <input required value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })}
-            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
+        <Field label="Photo">
+          <input type="file" accept="image/*" onChange={handleFileChange}
+            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink file:mr-3 file:px-3 file:py-1 file:rounded file:border-0 file:bg-ink file:text-ivory file:text-sm" />
+          {isUploading && <p className="text-xs text-ink-soft/70 mt-1">Téléversement...</p>}
+          {form.url && !isUploading && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={form.url} alt="Aperçu" className="mt-2 h-16 w-16 object-cover rounded border border-silver-soft" />
+          )}
         </Field>
         <Field label="Type">
           <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
@@ -949,7 +1006,7 @@ function ImagesTab({
         </Field>
         {error && <p className="md:col-span-3 text-sm text-red-600">{error}</p>}
         <div className="md:col-span-3">
-          <button type="submit" disabled={isSaving}
+          <button type="submit" disabled={isSaving || isUploading || !form.url}
             className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors disabled:opacity-50">
             {isSaving ? "Ajout..." : "Ajouter l'image"}
           </button>

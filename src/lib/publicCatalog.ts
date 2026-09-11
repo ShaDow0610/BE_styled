@@ -166,6 +166,61 @@ export interface PublicLook {
   item_count: number;
 }
 
+export interface PublicLookDetail extends PublicLook {
+  items: {
+    _id: string;
+    nom: string;
+    taille: string;
+    couleur: string;
+    modele?: string;
+    prix: number | null;
+  }[];
+}
+
+export async function getPublicLook(id: string): Promise<PublicLookDetail | null> {
+  if (!mongoose.isValidObjectId(id)) return null;
+
+  await dbConnect();
+
+  const look = await Look.findById(id).lean();
+  if (!look) return null;
+
+  const lookItems = await LookItem.find({ look_id: id })
+    .populate({
+      path: "product_variant_id",
+      select: "taille couleur modele product_id",
+      populate: { path: "product_id", select: "nom" },
+    })
+    .lean();
+
+  if (lookItems.length === 0) return null;
+
+  const productIds = (lookItems as any[])
+    .map((i) => i.product_variant_id?.product_id?._id)
+    .filter(Boolean);
+  const priceIndex = await buildPriceIndex(productIds);
+
+  const items = (lookItems as any[])
+    .filter((i) => i.product_variant_id)
+    .map((i) => ({
+      _id: i._id.toString(),
+      nom: i.product_variant_id.product_id?.nom ?? "Produit supprimé",
+      taille: i.product_variant_id.taille,
+      couleur: i.product_variant_id.couleur,
+      modele: i.product_variant_id.modele,
+      prix: resolvePrice(priceIndex, i.product_variant_id.product_id._id.toString(), i.product_variant_id.modele),
+    }));
+
+  return {
+    _id: look._id.toString(),
+    nom: look.nom,
+    prix_pack: look.prix_pack,
+    photo_couverture: look.photo_couverture || "",
+    item_count: items.length,
+    items,
+  };
+}
+
 export async function getPublicLooks(limit = 100): Promise<PublicLook[]> {
   await dbConnect();
 
