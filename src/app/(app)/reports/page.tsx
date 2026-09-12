@@ -42,11 +42,11 @@ interface ReportData {
     groupe: "categorie" | "fournisseur" | "produit";
   };
   totalProduits: number;
-  valeurTotaleStock: number;
+  produitsDisponibles: number;
   margeMoyenneParCategorie: { categorie: string; marge_moyenne: number }[];
-  repartition: { nom: string; valeur: number; count: number }[];
-  repartitionOrigine: { origine: string; valeur: number; count: number }[];
-  valeurParStatut: { statut: string; valeur: number }[];
+  repartition: { nom: string; count: number }[];
+  repartitionOrigine: { origine: string; count: number }[];
+  produitsParStatut: { statut: string; count: number }[];
   ventes: {
     nombreVentes: number;
     chiffreAffaires: number;
@@ -265,8 +265,8 @@ export default function ReportsPage() {
           <p className="text-2xl font-bold text-ink">{stats.totalProduits}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-sm text-ink-soft/70">Valeur du stock</p>
-          <p className="text-2xl font-bold text-ink">{montant(stats.valeurTotaleStock)}</p>
+          <p className="text-sm text-ink-soft/70">Produits disponibles</p>
+          <p className="text-2xl font-bold text-ink">{stats.produitsDisponibles}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-sm text-ink-soft/70">CA (période sélectionnée)</p>
@@ -345,20 +345,20 @@ export default function ReportsPage() {
               {stats.repartition.map((r) => (
                 <li key={r.nom} className="flex justify-between">
                   <span className="text-ink-soft">{r.nom}</span>
-                  <span className="font-semibold text-ink">{montant(r.valeur)}</span>
+                  <span className="font-semibold text-ink">{r.count}</span>
                 </li>
               ))}
             </ul>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="font-serif text-xl text-ink mb-4">Valeur immobilisée par statut</h2>
+            <h2 className="font-serif text-xl text-ink mb-4">Produits par statut</h2>
             <ul className="space-y-2 text-sm">
-              {stats.valeurParStatut
+              {stats.produitsParStatut
                 .filter((v) => v.statut !== "disponible")
                 .map((v) => (
                   <li key={v.statut} className="flex justify-between">
                     <span className="text-ink-soft">{v.statut}</span>
-                    <span className="font-semibold text-ink">{montant(v.valeur)}</span>
+                    <span className="font-semibold text-ink">{v.count}</span>
                   </li>
                 ))}
             </ul>

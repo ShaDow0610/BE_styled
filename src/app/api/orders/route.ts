@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import OrderTracking from '@/lib/models/OrderTracking';
 import Payment from '@/lib/models/Payment';
-import ProductVariant from '@/lib/models/ProductVariant';
 import { buildPriceIndex, resolvePrice } from '@/lib/priceResolver';
 import { canWrite, getRole } from '@/lib/authz';
 
@@ -11,11 +10,7 @@ export async function GET() {
     await dbConnect();
     const orders = await OrderTracking.find()
       .sort({ date_maj: -1 })
-      .populate({
-        path: 'product_variant_id',
-        select: 'taille couleur sku_variante product_id modele',
-        populate: { path: 'product_id', select: 'nom' },
-      })
+      .populate({ path: 'product_id', select: 'nom' })
       .lean();
 
     const clientOrders = orders.filter((o) => o.type === 'commande_client');
@@ -25,7 +20,7 @@ export async function GET() {
     // on résout leur prix en direct plutôt que de les afficher sans montant.
     const legacyProductIds = clientOrders
       .filter((o) => o.montant_total == null)
-      .map((o) => (o.product_variant_id as any)?.product_id?._id)
+      .map((o) => (o.product_id as any)?._id)
       .filter(Boolean);
 
     const [paymentsByOrder, legacyPriceIndex] = await Promise.all([
@@ -43,9 +38,8 @@ export async function GET() {
 
       let montant_total = o.montant_total;
       if (montant_total == null) {
-        const variant = o.product_variant_id as any;
-        const productId = variant?.product_id?._id?.toString();
-        const prix = productId ? resolvePrice(legacyPriceIndex, productId, variant?.modele) : null;
+        const productId = (o.product_id as any)?._id?.toString();
+        const prix = productId ? resolvePrice(legacyPriceIndex, productId) : null;
         montant_total = prix != null ? Math.round(prix * o.quantite * 100) / 100 : null;
       }
       const montant_encaisse = Math.round((paymentsMap.get(o._id.toString()) ?? 0) * 100) / 100;
@@ -81,17 +75,16 @@ export async function POST(request: NextRequest) {
         prix_unitaire = Math.round(prixSaisi * 100) / 100;
         montant_total = Math.round(prix_unitaire * quantite * 100) / 100;
       } else {
-        const variant = await ProductVariant.findById(body.product_variant_id).select('product_id modele');
-        if (variant) {
-          const priceIndex = await buildPriceIndex([variant.product_id]);
-          prix_unitaire = resolvePrice(priceIndex, variant.product_id.toString(), variant.modele);
-          montant_total = prix_unitaire != null ? Math.round(prix_unitaire * quantite * 100) / 100 : null;
-        }
+        const priceIndex = await buildPriceIndex([body.product_id]);
+        prix_unitaire = resolvePrice(priceIndex, body.product_id);
+        montant_total = prix_unitaire != null ? Math.round(prix_unitaire * quantite * 100) / 100 : null;
       }
     }
 
     const order = await OrderTracking.create({
-      product_variant_id: body.product_variant_id,
+      product_id: body.product_id,
+      couleur: body.couleur || '',
+      taille: body.taille || '',
       type: body.type,
       statut: 'commande',
       quantite,

@@ -18,22 +18,14 @@ export async function GET(_request: NextRequest, { params }: Params) {
     }
 
     const items = await LookItem.find({ look_id: id })
-      .populate({
-        path: 'product_variant_id',
-        select: 'taille couleur modele sku_variante product_id',
-        populate: { path: 'product_id', select: 'nom' },
-      })
+      .populate({ path: 'product_id', select: 'nom' })
       .lean();
 
-    const productIds = (items as any[])
-      .map((i) => i.product_variant_id?.product_id?._id)
-      .filter(Boolean);
+    const productIds = (items as any[]).map((i) => i.product_id?._id).filter(Boolean);
     const priceIndex = await buildPriceIndex(productIds);
     const itemsWithPrix = (items as any[]).map((i) => ({
       ...i,
-      prix: i.product_variant_id
-        ? resolvePrice(priceIndex, i.product_variant_id.product_id._id.toString(), i.product_variant_id.modele)
-        : null,
+      prix: i.product_id ? resolvePrice(priceIndex, i.product_id._id.toString()) : null,
     }));
 
     return NextResponse.json({ success: true, data: { ...look, items: itemsWithPrix } });

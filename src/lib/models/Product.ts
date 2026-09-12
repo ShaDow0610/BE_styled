@@ -38,6 +38,8 @@ export interface IProduct extends Document {
   matiere?: string;
   poids_kg: number;
   statut: ProductStatus;
+  couleurs_disponibles: string[];
+  tailles_disponibles: string[];
   date_creation: Date;
 }
 
@@ -52,6 +54,8 @@ const ProductSchema = new Schema<IProduct>({
   matiere: { type: String, default: '' },
   poids_kg: { type: Number, default: 0, min: 0 },
   statut: { type: String, enum: PRODUCT_STATUSES, default: 'brouillon' },
+  couleurs_disponibles: { type: [String], default: [] },
+  tailles_disponibles: { type: [String], default: [] },
   date_creation: { type: Date, default: Date.now },
 });
 

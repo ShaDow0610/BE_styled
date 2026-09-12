@@ -47,13 +47,12 @@ export default async function BoutiqueHomePage() {
             className={`text-xs tracking-[0.3em] uppercase mb-4 ${heroVideo ? "text-silver-soft" : "text-ink-soft/60"}`}>
             Collection actuelle
           </p>
-          <h1
-            className={`font-serif text-5xl md:text-7xl tracking-wide mb-4 ${heroVideo ? "text-ivory" : "text-ink"}`}>
-            BE STYLED
-          </h1>
-          <p className={`text-xl mb-10 ${heroVideo ? "text-ivory/90" : "text-ink-soft"}`}>
-            Le style, votre signature
-          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={heroVideo ? "/brand/logo-full-white.png" : "/brand/logo-full-black.png"}
+            alt="Be Styled — Le style, votre signature"
+            className="mx-auto h-40 md:h-56 w-auto mb-10"
+          />
           <Link
             href="/boutique/catalogue"
             className="inline-block px-8 py-3 bg-ink text-ivory rounded-lg font-semibold hover:bg-ink-soft transition-colors">
@@ -140,13 +139,9 @@ export default async function BoutiqueHomePage() {
                   )}
                   <div className="p-4">
                     <h3 className="font-semibold text-ink">{product.nom}</h3>
-                    {product.prix != null ? (
+                    {product.prix != null && (
                       <Price xaf={product.prix} className="block text-ink font-bold mt-1" />
-                    ) : product.prix_a_partir_de != null ? (
-                      <p className="text-ink font-bold mt-1">
-                        à partir de <Price xaf={product.prix_a_partir_de} />
-                      </p>
-                    ) : null}
+                    )}
                   </div>
                 </Link>
                 <div className="px-4 pb-4">

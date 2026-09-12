@@ -40,7 +40,6 @@ export async function POST(request: NextRequest, { params }: Params) {
       cout_main_oeuvre,
       marge_pourcentage,
       prix_revente_final: prixVenteSaisi,
-      modele,
       raison_changement,
     } = body;
 
@@ -64,7 +63,6 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const pricing = await ProductPricing.create({
       product_id: id,
-      modele: modele || null,
       date_effet: new Date(),
       cout_achat,
       devise_achat,

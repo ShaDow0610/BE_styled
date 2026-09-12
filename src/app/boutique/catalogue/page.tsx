@@ -122,13 +122,9 @@ export default async function CataloguePage({ searchParams }: { searchParams: Se
                 <div className="p-4">
                   <h3 className="font-semibold text-ink">{product.nom}</h3>
                   <p className="text-ink-soft/70 text-xs capitalize mt-1">{product.categorie}</p>
-                  {product.prix != null ? (
+                  {product.prix != null && (
                     <Price xaf={product.prix} className="block text-ink font-bold mt-2" />
-                  ) : product.prix_a_partir_de != null ? (
-                    <p className="text-ink font-bold mt-2">
-                      à partir de <Price xaf={product.prix_a_partir_de} />
-                    </p>
-                  ) : null}
+                  )}
                 </div>
               </Link>
               <div className="px-4 pb-4">

@@ -10,22 +10,12 @@ interface ProductOption {
   nom: string;
 }
 
-interface VariantOption {
-  _id: string;
-  taille: string;
-  couleur: string;
-  sku_variante: string;
-}
-
 interface LookItem {
   _id: string;
   prix: number | null;
-  product_variant_id: {
+  product_id: {
     _id: string;
-    taille: string;
-    couleur: string;
-    sku_variante: string;
-    product_id: { nom: string };
+    nom: string;
   };
 }
 
@@ -46,9 +36,7 @@ export default function LookDetailPage() {
   const [canWrite, setCanWrite] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<ProductOption[]>([]);
-  const [variants, setVariants] = useState<VariantOption[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("");
-  const [selectedVariant, setSelectedVariant] = useState("");
   const [error, setError] = useState("");
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
@@ -103,27 +91,17 @@ export default function LookDetailPage() {
       .then((d) => setProducts(d.data.map((p: { _id: string; nom: string }) => ({ _id: p._id, nom: p.nom }))));
   }, [load, router]);
 
-  useEffect(() => {
-    if (!selectedProduct) {
-      setVariants([]);
-      return;
-    }
-    fetch(`/api/products/${selectedProduct}/variants`)
-      .then((r) => r.json())
-      .then((d) => setVariants(d.data));
-  }, [selectedProduct]);
-
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!selectedVariant) {
-      setError("Choisis une variante");
+    if (!selectedProduct) {
+      setError("Choisis un produit");
       return;
     }
     const res = await fetch(`/api/looks/${id}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ product_variant_id: selectedVariant }),
+      body: JSON.stringify({ product_id: selectedProduct }),
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
@@ -131,7 +109,6 @@ export default function LookDetailPage() {
       return;
     }
     setSelectedProduct("");
-    setSelectedVariant("");
     load();
   };
 
@@ -185,28 +162,15 @@ export default function LookDetailPage() {
 
       {canWrite && (
         <form onSubmit={handleAddItem} className="bg-white rounded-lg shadow p-6 mb-6 grid md:grid-cols-3 gap-4">
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-ink-soft mb-2">Produit</label>
             <select
               value={selectedProduct}
-              onChange={(e) => { setSelectedProduct(e.target.value); setSelectedVariant(""); }}
+              onChange={(e) => setSelectedProduct(e.target.value)}
               className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
               <option value="">Choisir un produit</option>
               {products.map((p) => (
                 <option key={p._id} value={p._id}>{p.nom}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Variante</label>
-            <select
-              value={selectedVariant}
-              onChange={(e) => setSelectedVariant(e.target.value)}
-              disabled={!selectedProduct}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink disabled:bg-ivory-soft">
-              <option value="">Choisir une variante</option>
-              {variants.map((v) => (
-                <option key={v._id} value={v._id}>{v.sku_variante} ({v.taille}/{v.couleur})</option>
               ))}
             </select>
           </div>
@@ -228,10 +192,7 @@ export default function LookDetailPage() {
             {look.items.map((item) => (
               <li key={item._id} className="flex justify-between items-center py-3 text-sm">
                 <div>
-                  <p className="font-medium text-ink">{item.product_variant_id.product_id.nom}</p>
-                  <p className="text-ink-soft/70">
-                    {item.product_variant_id.sku_variante} · {item.product_variant_id.taille}/{item.product_variant_id.couleur}
-                  </p>
+                  <p className="font-medium text-ink">{item.product_id.nom}</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-ink-soft">

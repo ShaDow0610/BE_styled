@@ -56,11 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     const orders = await OrderTracking.find({ _id: { $in: orderTrackingIds } })
-      .populate({
-        path: 'product_variant_id',
-        select: 'sku_variante taille couleur product_id',
-        populate: { path: 'product_id', select: 'nom' },
-      })
+      .populate({ path: 'product_id', select: 'nom' })
       .lean();
 
     if (orders.length !== orderTrackingIds.length) {
@@ -70,19 +66,19 @@ export async function POST(request: NextRequest) {
     for (const o of orders as any[]) {
       if (o.type !== 'commande_client') {
         return NextResponse.json(
-          { success: false, error: `La ligne "${o.product_variant_id?.sku_variante ?? o._id}" n'est pas une commande client` },
+          { success: false, error: `La ligne "${o.product_id?.nom ?? o._id}" n'est pas une commande client` },
           { status: 400 }
         );
       }
       if (o.facture_id) {
         return NextResponse.json(
-          { success: false, error: `La ligne "${o.product_variant_id?.sku_variante ?? o._id}" est déjà facturée` },
+          { success: false, error: `La ligne "${o.product_id?.nom ?? o._id}" est déjà facturée` },
           { status: 400 }
         );
       }
       if (o.montant_total == null) {
         return NextResponse.json(
-          { success: false, error: `La ligne "${o.product_variant_id?.sku_variante ?? o._id}" n'a pas de prix défini` },
+          { success: false, error: `La ligne "${o.product_id?.nom ?? o._id}" n'a pas de prix défini` },
           { status: 400 }
         );
       }
@@ -90,8 +86,9 @@ export async function POST(request: NextRequest) {
 
     const lignes = (orders as any[]).map((o) => ({
       order_tracking_id: o._id,
-      produit_nom: o.product_variant_id?.product_id?.nom ?? 'Produit supprimé',
-      sku_variante: o.product_variant_id?.sku_variante ?? '',
+      produit_nom: o.product_id?.nom ?? 'Produit supprimé',
+      couleur: o.couleur ?? '',
+      taille: o.taille ?? '',
       quantite: o.quantite,
       prix_unitaire: o.prix_unitaire ?? Math.round((o.montant_total / o.quantite) * 100) / 100,
       montant_total: o.montant_total,

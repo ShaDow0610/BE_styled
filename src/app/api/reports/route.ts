@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import Product from '@/lib/models/Product';
-import ProductVariant from '@/lib/models/ProductVariant';
 import ProductPricing from '@/lib/models/ProductPricing';
 import Supplier from '@/lib/models/Supplier';
 import OrderTracking from '@/lib/models/OrderTracking';
@@ -42,16 +41,17 @@ export async function GET(request: NextRequest) {
     if (statut) productFilter.statut = statut;
 
     const [allProducts, suppliers] = await Promise.all([
-      Product.find(productFilter).select('nom categorie statut origine fournisseur_id').lean(),
+      Product.find(productFilter)
+        .select('nom categorie statut origine fournisseur_id couleurs_disponibles tailles_disponibles')
+        .lean(),
       Supplier.find().select('nom').lean(),
     ]);
 
     const productIds = allProducts.map((p) => p._id);
     const productIdSet = new Set(productIds.map((id) => id.toString()));
 
-    const [allVariants, margeByProduct, recentSales, allClientOrders, paymentsByOrder, encaissementsAgg, priceIndex] =
+    const [margeByProduct, recentSales, allClientOrders, paymentsByOrder, encaissementsAgg, priceIndex] =
       await Promise.all([
-        ProductVariant.find({ product_id: { $in: productIds } }).select('product_id modele stock_quantite').lean(),
         ProductPricing.aggregate([
           { $sort: { date_effet: -1 } },
           { $group: { _id: '$product_id', marge_pourcentage: { $first: '$marge_pourcentage' } } },
@@ -61,11 +61,10 @@ export async function GET(request: NextRequest) {
           statut: 'livre_client',
           date_maj: { $gte: dateDebut, $lte: dateFin },
         })
-          .populate({ path: 'product_variant_id', select: 'product_id modele', populate: { path: 'product_id', select: 'nom' } })
+          .populate({ path: 'product_id', select: 'nom' })
           .lean(),
         OrderTracking.find({ type: 'commande_client' })
-          .select('quantite montant_total product_variant_id')
-          .populate({ path: 'product_variant_id', select: 'product_id modele' })
+          .select('quantite montant_total product_id')
           .lean(),
         Payment.aggregate([{ $group: { _id: '$order_tracking_id', total: { $sum: '$montant' } } }]),
         Payment.aggregate([
@@ -78,17 +77,7 @@ export async function GET(request: NextRequest) {
     const margeMap = new Map(margeByProduct.map((m) => [m._id.toString(), m.marge_pourcentage]));
     const supplierNameMap = new Map(suppliers.map((s) => [s._id.toString(), s.nom]));
 
-    // Valeur d'un produit = somme, PAR VARIANTE, de (stock × prix résolu pour son modèle).
-    const valeurParProduit = new Map<string, number>();
-    let valeurTotaleStock = 0;
-    for (const v of allVariants as any[]) {
-      const productId = v.product_id.toString();
-      const prix = resolvePrice(priceIndex, productId, v.modele);
-      if (prix == null) continue;
-      const valeur = prix * v.stock_quantite;
-      valeurParProduit.set(productId, (valeurParProduit.get(productId) ?? 0) + valeur);
-      valeurTotaleStock += valeur;
-    }
+    const produitsDisponibles = allProducts.filter((p) => p.statut === 'disponible').length;
 
     // Marge moyenne par catégorie (indicateur global, basé sur le prix par défaut).
     const margeParCategorie = new Map<string, { total: number; count: number }>();
@@ -107,10 +96,9 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // Répartition générique, pilotée par `groupe`.
-    const parGroupe = new Map<string, { nom: string; valeur: number; count: number }>();
+    // Répartition générique (nombre de produits), pilotée par `groupe`.
+    const parGroupe = new Map<string, { nom: string; count: number }>();
     for (const p of allProducts) {
-      const valeur = valeurParProduit.get(p._id.toString()) ?? 0;
       let key: string;
       let nom: string;
       if (groupe === 'categorie') {
@@ -123,40 +111,25 @@ export async function GET(request: NextRequest) {
         key = p._id.toString();
         nom = p.nom;
       }
-      const bucket = parGroupe.get(key) || { nom, valeur: 0, count: 0 };
-      bucket.valeur += valeur;
+      const bucket = parGroupe.get(key) || { nom, count: 0 };
       bucket.count += 1;
       parGroupe.set(key, bucket);
     }
-    const repartition = Array.from(parGroupe.values())
-      .map((r) => ({ ...r, valeur: Math.round(r.valeur * 100) / 100 }))
-      .sort((a, b) => b.valeur - a.valeur);
+    const repartition = Array.from(parGroupe.values()).sort((a, b) => b.count - a.count);
 
     // Répartition origine.
-    const parOrigine = new Map<string, { valeur: number; count: number }>();
+    const parOrigine = new Map<string, number>();
     for (const p of allProducts) {
-      const valeur = valeurParProduit.get(p._id.toString()) ?? 0;
-      const bucket = parOrigine.get(p.origine) || { valeur: 0, count: 0 };
-      bucket.valeur += valeur;
-      bucket.count += 1;
-      parOrigine.set(p.origine, bucket);
+      parOrigine.set(p.origine, (parOrigine.get(p.origine) ?? 0) + 1);
     }
-    const repartitionOrigine = Array.from(parOrigine.entries()).map(([origine, v]) => ({
-      origine,
-      valeur: Math.round(v.valeur * 100) / 100,
-      count: v.count,
-    }));
+    const repartitionOrigine = Array.from(parOrigine.entries()).map(([origine, count]) => ({ origine, count }));
 
-    // Valeur immobilisée par statut logistique.
+    // Produits par statut logistique.
     const parStatut = new Map<string, number>();
     for (const p of allProducts) {
-      const valeur = valeurParProduit.get(p._id.toString()) ?? 0;
-      parStatut.set(p.statut, (parStatut.get(p.statut) ?? 0) + valeur);
+      parStatut.set(p.statut, (parStatut.get(p.statut) ?? 0) + 1);
     }
-    const valeurParStatut = Array.from(parStatut.entries()).map(([statut, valeur]) => ({
-      statut,
-      valeur: Math.round(valeur * 100) / 100,
-    }));
+    const produitsParStatut = Array.from(parStatut.entries()).map(([statut, count]) => ({ statut, count }));
 
     // Ventes sur la période demandée, restreintes aux produits filtrés.
     let chiffreAffaires = 0;
@@ -164,14 +137,14 @@ export async function GET(request: NextRequest) {
     const parBucket = new Map<string, number>();
     let nombreVentes = 0;
     for (const sale of recentSales as any[]) {
-      const product = sale.product_variant_id?.product_id;
+      const product = sale.product_id;
       if (!product) continue;
       if (!productIdSet.has(product._id.toString())) continue;
 
       const montantVente =
         sale.montant_total ??
         (() => {
-          const prix = resolvePrice(priceIndex, product._id.toString(), sale.product_variant_id?.modele);
+          const prix = resolvePrice(priceIndex, product._id.toString());
           return prix != null ? prix * sale.quantite : null;
         })();
       if (montantVente == null) continue;
@@ -192,17 +165,12 @@ export async function GET(request: NextRequest) {
       .map(([date, ca]) => ({ date, ca: Math.round(ca * 100) / 100 }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    // Points d'attention : état présent du stock, non daté, mais restreint aux produits filtrés.
+    // Points d'attention : état présent du catalogue, non daté, restreint aux produits filtrés.
     const pointsAttention: { type: string; message: string; lien: string; severite: 'critique' | 'attention' }[] = [];
-    const stockTotalByProduct = new Map<string, number>();
-    for (const v of allVariants as any[]) {
-      const id = v.product_id.toString();
-      stockTotalByProduct.set(id, (stockTotalByProduct.get(id) ?? 0) + v.stock_quantite);
-    }
     for (const p of allProducts) {
       const id = p._id.toString();
       if (p.statut === 'archive') continue;
-      if (!priceIndex.allByProduct.has(id)) {
+      if (!priceIndex.has(id)) {
         pointsAttention.push({
           type: 'prix_manquant',
           message: `"${p.nom}" n'a aucun prix enregistré`,
@@ -210,10 +178,10 @@ export async function GET(request: NextRequest) {
           severite: 'critique',
         });
       }
-      if (!stockTotalByProduct.has(id)) {
+      if ((p.couleurs_disponibles?.length ?? 0) === 0 && (p.tailles_disponibles?.length ?? 0) === 0) {
         pointsAttention.push({
-          type: 'variante_manquante',
-          message: `"${p.nom}" n'a aucune variante`,
+          type: 'disponibilite_manquante',
+          message: `"${p.nom}" n'a aucune couleur ni taille renseignée`,
           lien: `/products/${id}`,
           severite: 'critique',
         });
@@ -224,12 +192,12 @@ export async function GET(request: NextRequest) {
     const paymentsByOrderMap = new Map(paymentsByOrder.map((p) => [p._id.toString(), p.total]));
     let resteAPayer = 0;
     for (const o of allClientOrders as any[]) {
-      const productId = o.product_variant_id?.product_id?.toString();
+      const productId = o.product_id?.toString();
       if (!productId || !productIdSet.has(productId)) continue;
       const total =
         o.montant_total ??
         (() => {
-          const prix = resolvePrice(priceIndex, productId, o.product_variant_id?.modele);
+          const prix = resolvePrice(priceIndex, productId);
           return prix != null ? prix * o.quantite : null;
         })();
       if (total == null) continue;
@@ -252,11 +220,11 @@ export async function GET(request: NextRequest) {
           groupe,
         },
         totalProduits: allProducts.length,
-        valeurTotaleStock: Math.round(valeurTotaleStock * 100) / 100,
+        produitsDisponibles,
         margeMoyenneParCategorie,
         repartition,
         repartitionOrigine,
-        valeurParStatut,
+        produitsParStatut,
         ventes: {
           nombreVentes,
           chiffreAffaires: Math.round(chiffreAffaires * 100) / 100,

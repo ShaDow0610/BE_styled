@@ -55,7 +55,9 @@ export const Navbar = () => {
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         <Link
           href="/dashboard"
-          className="font-serif text-2xl tracking-wide text-ivory">
+          className="flex items-center gap-2 font-serif text-2xl tracking-wide text-ivory">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/icon-white.png" alt="" className="h-8 w-auto" />
           BE STYLED
         </Link>
 

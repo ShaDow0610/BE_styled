@@ -3,7 +3,6 @@ interface WhatsAppProductInfo {
   reference: string;
   taille?: string;
   couleur?: string;
-  modele?: string;
 }
 
 /**
@@ -14,7 +13,6 @@ export function buildWhatsAppLink(product: WhatsAppProductInfo): string {
   const number = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '000000000000';
 
   const details: string[] = [];
-  if (product.modele) details.push(`modèle ${product.modele}`);
   if (product.taille) details.push(`taille ${product.taille}`);
   if (product.couleur) details.push(`couleur ${product.couleur}`);
   const variantInfo = details.length > 0 ? ` (${details.join(', ')})` : '';

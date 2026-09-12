@@ -17,7 +17,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const item = await LookItem.create({
       look_id: id,
-      product_variant_id: body.product_variant_id,
+      product_id: body.product_id,
     });
     return NextResponse.json({ success: true, data: item }, { status: 201 });
   } catch (error) {

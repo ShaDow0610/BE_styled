@@ -9,11 +9,10 @@ import { formatXAF } from "@/lib/currency";
 interface OrderEntry {
   _id: string;
   quantite: number;
+  couleur?: string;
+  taille?: string;
   montant_total?: number | null;
-  product_variant_id: {
-    sku_variante: string;
-    product_id: { nom: string };
-  } | null;
+  product_id: { nom: string } | null;
 }
 
 export default function NewInvoicePage() {
@@ -120,7 +119,7 @@ function NewInvoiceForm() {
               <thead>
                 <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
                   <th className="py-2 pr-4">Produit</th>
-                  <th className="py-2 pr-4">SKU</th>
+                  <th className="py-2 pr-4">Couleur / Taille</th>
                   <th className="py-2 pr-4">Quantité</th>
                   <th className="py-2 pr-4">Montant</th>
                 </tr>
@@ -128,8 +127,8 @@ function NewInvoiceForm() {
               <tbody>
                 {orders.map((o) => (
                   <tr key={o._id} className="border-b border-silver-soft/50">
-                    <td className="py-2 pr-4 text-ink">{o.product_variant_id?.product_id?.nom ?? "Produit supprimé"}</td>
-                    <td className="py-2 pr-4 text-ink-soft">{o.product_variant_id?.sku_variante}</td>
+                    <td className="py-2 pr-4 text-ink">{o.product_id?.nom ?? "Produit supprimé"}</td>
+                    <td className="py-2 pr-4 text-ink-soft">{[o.couleur, o.taille].filter(Boolean).join(" / ")}</td>
                     <td className="py-2 pr-4 text-ink-soft">{o.quantite}</td>
                     <td className="py-2 pr-4 font-semibold text-ink">{formatXAF(o.montant_total ?? 0)}</td>
                   </tr>

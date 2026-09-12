@@ -12,18 +12,19 @@ export const ORDER_STATUSES = [
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export interface IOrderTracking extends Document {
-  product_variant_id: mongoose.Schema.Types.ObjectId;
+  product_id: mongoose.Schema.Types.ObjectId;
+  // Couleur/taille choisies au moment de la vente/réappro — informatives,
+  // pas une référence vers une entité (il n'y a plus de variante en base).
+  couleur?: string;
+  taille?: string;
   type: 'reappro_fournisseur' | 'commande_client';
   statut: OrderStatus;
   quantite: number;
-  // Prix figé au moment de la commande (résolu selon le modèle de la
-  // variante) — reste correct pour une facture même si le prix change
-  // ensuite. Non renseigné pour les réappros fournisseur (pas de vente).
+  // Prix figé au moment de la commande — reste correct pour une facture
+  // même si le prix du produit change ensuite. Non renseigné pour les
+  // réappros fournisseur (pas de vente).
   prix_unitaire?: number;
   montant_total?: number;
-  // Empêche d'appliquer deux fois l'effet sur le stock si le statut est
-  // modifié plusieurs fois après avoir atteint son état terminal.
-  stock_applique: boolean;
   date_maj: Date;
   // Renseigné une fois la ligne incluse dans une facture — empêche de la
   // sélectionner une seconde fois (double facturation).
@@ -31,13 +32,14 @@ export interface IOrderTracking extends Document {
 }
 
 const OrderTrackingSchema = new Schema<IOrderTracking>({
-  product_variant_id: { type: Schema.Types.ObjectId, ref: 'ProductVariant', required: true },
+  product_id: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+  couleur: { type: String, default: '' },
+  taille: { type: String, default: '' },
   type: { type: String, enum: ['reappro_fournisseur', 'commande_client'], required: true },
   statut: { type: String, enum: ORDER_STATUSES, default: 'commande' },
   quantite: { type: Number, required: true, min: 1 },
   prix_unitaire: { type: Number, default: null },
   montant_total: { type: Number, default: null },
-  stock_applique: { type: Boolean, default: false },
   date_maj: { type: Date, default: Date.now },
   facture_id: { type: Schema.Types.ObjectId, ref: 'Invoice', default: null },
 });

@@ -20,8 +20,7 @@ import { useUserRole } from "@/lib/useUserRole";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBox,
-  faChartLine,
-  faTriangleExclamation,
+  faCheckCircle,
   faTruck,
   faCartShopping,
   faCircleExclamation,
@@ -33,17 +32,6 @@ interface MargeParCategorie {
   marge_moyenne: number;
 }
 
-interface AlerteRupture {
-  _id: string;
-  sku_variante: string;
-  taille: string;
-  couleur: string;
-  stock_quantite: number;
-  seuil_alerte: number;
-  product_id: string;
-  product: { nom: string };
-}
-
 interface ProduitEnTransit {
   _id: string;
   nom: string;
@@ -53,19 +41,17 @@ interface ProduitEnTransit {
 
 interface RepartitionFournisseur {
   nom: string;
-  valeur: number;
   count: number;
 }
 
 interface RepartitionOrigine {
   origine: string;
-  valeur: number;
   count: number;
 }
 
-interface ValeurParStatut {
+interface ProduitsParStatut {
   statut: string;
-  valeur: number;
+  count: number;
 }
 
 interface Ventes30j {
@@ -87,26 +73,24 @@ interface PointAttention {
 
 interface DashboardStats {
   totalProduits: number;
-  valeurTotaleStock: number;
+  produitsDisponibles: number;
   margeMoyenneParCategorie: MargeParCategorie[];
-  alertesRupture: AlerteRupture[];
   produitsEnTransit: ProduitEnTransit[];
   repartitionFournisseurs: RepartitionFournisseur[];
   repartitionOrigine: RepartitionOrigine[];
-  valeurParStatut: ValeurParStatut[];
+  produitsParStatut: ProduitsParStatut[];
   ventes30j: Ventes30j;
   pointsAttention: PointAttention[];
 }
 
 const EMPTY_STATS: DashboardStats = {
   totalProduits: 0,
-  valeurTotaleStock: 0,
+  produitsDisponibles: 0,
   margeMoyenneParCategorie: [],
-  alertesRupture: [],
   produitsEnTransit: [],
   repartitionFournisseurs: [],
   repartitionOrigine: [],
-  valeurParStatut: [],
+  produitsParStatut: [],
   ventes30j: { nombreVentes: 0, chiffreAffaires: 0, meilleuresVentes: [], parJour: [], previsionCA30jSuivants: 0, encaissements30j: 0, resteAPayer: 0 },
   pointsAttention: [],
 };
@@ -126,7 +110,6 @@ export default function DashboardPage() {
   const { canSeeFinancials } = useUserRole();
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [isLoading, setIsLoading] = useState(true);
-  const [creatingReappro, setCreatingReappro] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -160,25 +143,6 @@ export default function DashboardPage() {
     router.push("/");
   };
 
-  const handleCreateReappro = async (alerte: AlerteRupture) => {
-    setCreatingReappro(alerte._id);
-    try {
-      const quantiteSuggeree = Math.max(1, alerte.seuil_alerte - alerte.stock_quantite + 5);
-      await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product_variant_id: alerte._id,
-          type: "reappro_fournisseur",
-          quantite: quantiteSuggeree,
-        }),
-      });
-      router.push("/orders");
-    } finally {
-      setCreatingReappro(null);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -187,7 +151,7 @@ export default function DashboardPage() {
     );
   }
 
-  const valeurImmobilisee = stats.valeurParStatut.filter((v) => v.statut !== "disponible");
+  const produitsEnCours = stats.produitsParStatut.filter((v) => v.statut !== "disponible");
   const montant = (n: number) => (canSeeFinancials ? formatXAF(n) : "—");
 
   return (
@@ -206,20 +170,12 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Stats Cards — cliquables */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Link href="/products">
           <StatCard title="Total Produits" value={stats.totalProduits} icon={<FontAwesomeIcon icon={faBox} />} color="bg-ink" />
         </Link>
         <a href="#repartition">
-          <StatCard title="Valeur du Stock" value={montant(stats.valeurTotaleStock)} icon={<FontAwesomeIcon icon={faChartLine} />} color="bg-ink-soft" />
-        </a>
-        <a href="#alertes">
-          <StatCard
-            title="Alertes Rupture"
-            value={stats.alertesRupture.length}
-            icon={<FontAwesomeIcon icon={faTriangleExclamation} />}
-            color={stats.alertesRupture.length > 0 ? "bg-red-600" : "bg-ink-soft"}
-          />
+          <StatCard title="Produits disponibles" value={stats.produitsDisponibles} icon={<FontAwesomeIcon icon={faCheckCircle} />} color="bg-ink-soft" />
         </a>
         <a href="#transit">
           <StatCard title="Produits en Transit" value={stats.produitsEnTransit.length} icon={<FontAwesomeIcon icon={faTruck} />} color="bg-ink" />
@@ -277,45 +233,13 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
-        {/* Alertes rupture — actionnables */}
-        <motion.div
-          id="alertes"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-lg shadow-lg p-6 scroll-mt-6">
-          <h2 className="font-serif text-xl text-ink mb-4">Alertes rupture</h2>
-          {stats.alertesRupture.length > 0 ? (
-            <ul className="divide-y divide-silver-soft">
-              {stats.alertesRupture.map((a) => (
-                <li key={a._id} className="py-3 text-sm flex justify-between items-center gap-3">
-                  <Link href={`/products/${a.product_id}`} className="flex-1 min-w-0">
-                    <p className="font-medium text-ink truncate">{a.product?.nom}</p>
-                    <p className="text-red-600/80">
-                      {a.sku_variante} · {a.taille}/{a.couleur} — {a.stock_quantite} en stock (seuil {a.seuil_alerte})
-                    </p>
-                  </Link>
-                  <button
-                    onClick={() => handleCreateReappro(a)}
-                    disabled={creatingReappro === a._id}
-                    className="shrink-0 px-3 py-1.5 border border-ink text-ink rounded-lg text-xs font-medium hover:bg-ink hover:text-ivory transition-colors disabled:opacity-50">
-                    {creatingReappro === a._id ? "..." : "Créer un réappro"}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-ink-soft/70 text-sm py-4">Aucune alerte de stock faible.</p>
-          )}
-        </motion.div>
-
         {/* Ventes récentes */}
         <motion.div
           id="ventes"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="bg-white rounded-lg shadow-lg p-6 scroll-mt-6 lg:col-span-2">
+          className="bg-white rounded-lg shadow-lg p-6 scroll-mt-6">
           <h2 className="font-serif text-xl text-ink mb-1">Ventes (30 derniers jours)</h2>
           <p className="text-ink-soft/60 text-xs mb-4">
             {stats.ventes30j.nombreVentes} vente(s)
@@ -373,7 +297,7 @@ export default function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
             className="bg-white rounded-lg shadow-lg p-6 scroll-mt-6">
-            <h2 className="font-serif text-xl text-ink mb-4">Répartition du stock</h2>
+            <h2 className="font-serif text-xl text-ink mb-4">Répartition du catalogue</h2>
             <div className="grid sm:grid-cols-2 gap-6">
               <div>
                 <p className="text-xs font-semibold text-ink-soft/70 uppercase mb-2">Par fournisseur</p>
@@ -382,7 +306,7 @@ export default function DashboardPage() {
                     {stats.repartitionFournisseurs.map((f) => (
                       <li key={f.nom} className="text-sm flex justify-between">
                         <span className="text-ink-soft">{f.nom}</span>
-                        <span className="font-semibold text-ink">{montant(f.valeur)}</span>
+                        <span className="font-semibold text-ink">{f.count}</span>
                       </li>
                     ))}
                   </ul>
@@ -397,9 +321,9 @@ export default function DashboardPage() {
                     {stats.repartitionOrigine.map((o) => (
                       <li key={o.origine} className="text-sm flex justify-between">
                         <span className="text-ink-soft">
-                          {o.origine === "import_chine" ? "Import Chine" : "Local"} ({o.count})
+                          {o.origine === "import_chine" ? "Import Chine" : "Local"}
                         </span>
-                        <span className="font-semibold text-ink">{montant(o.valeur)}</span>
+                        <span className="font-semibold text-ink">{o.count}</span>
                       </li>
                     ))}
                   </ul>
@@ -411,25 +335,25 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
-        {/* Valeur immobilisée par statut */}
+        {/* Produits en cours (hors disponible) */}
         {canSeeFinancials && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35 }}
             className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="font-serif text-xl text-ink mb-4">Valeur immobilisée</h2>
-            {valeurImmobilisee.length > 0 ? (
+            <h2 className="font-serif text-xl text-ink mb-4">Produits en cours (pipeline)</h2>
+            {produitsEnCours.length > 0 ? (
               <ul className="divide-y divide-silver-soft">
-                {valeurImmobilisee.map((v) => (
+                {produitsEnCours.map((v) => (
                   <li key={v.statut} className="flex justify-between py-2 text-sm">
                     <span className="text-ink-soft">{STATUT_LABELS[v.statut] ?? v.statut}</span>
-                    <span className="font-semibold text-ink">{montant(v.valeur)}</span>
+                    <span className="font-semibold text-ink">{v.count}</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-ink-soft/70 text-sm py-4">Tout le stock est disponible à la vente.</p>
+              <p className="text-ink-soft/70 text-sm py-4">Tous les produits sont disponibles à la vente.</p>
             )}
           </motion.div>
         )}

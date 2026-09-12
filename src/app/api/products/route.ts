@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import Product, { PRODUCT_CATEGORIES } from '@/lib/models/Product';
-import ProductVariant from '@/lib/models/ProductVariant';
-import { buildPriceIndex, resolvePrice, resolveMinPrice } from '@/lib/priceResolver';
+import { buildPriceIndex, resolvePrice } from '@/lib/priceResolver';
 import { canWrite, getRole } from '@/lib/authz';
 
 const CATEGORY_CODES: Record<string, string> = {
@@ -19,7 +18,7 @@ const CATEGORY_CODES: Record<string, string> = {
   autre: 'AUTR',
 };
 
-async function generateReference(categorie: string): Promise<string> {
+export async function generateReference(categorie: string): Promise<string> {
   const code = CATEGORY_CODES[categorie] || 'AUTR';
   let attempt = (await Product.countDocuments({ categorie })) + 1;
 
@@ -59,29 +58,12 @@ export async function GET(request: NextRequest) {
     const total = await Product.countDocuments(query);
     const productIds = products.map((p) => p._id);
 
-    // Stock total, tailles disponibles et prix agrégés sans N+1 par produit.
-    const [stockByProduct, priceIndex] = await Promise.all([
-      ProductVariant.aggregate([
-        { $match: { product_id: { $in: productIds } } },
-        { $group: { _id: '$product_id', stock_total: { $sum: '$stock_quantite' }, tailles: { $addToSet: '$taille' } } },
-      ]),
-      buildPriceIndex(productIds),
-    ]);
+    const priceIndex = await buildPriceIndex(productIds);
 
-    const stockMap = new Map(stockByProduct.map((s) => [s._id.toString(), s.stock_total]));
-    const taillesMap = new Map(stockByProduct.map((s) => [s._id.toString(), (s.tailles as string[]).sort()]));
-
-    const data = products.map((p) => {
-      const id = p._id.toString();
-      const prixDefaut = resolvePrice(priceIndex, id);
-      return {
-        ...p,
-        stock_total: stockMap.get(id) ?? 0,
-        tailles: taillesMap.get(id) ?? [],
-        prix_actuel: prixDefaut,
-        prix_a_partir_de: prixDefaut == null ? resolveMinPrice(priceIndex, id) : null,
-      };
-    });
+    const data = products.map((p) => ({
+      ...p,
+      prix_actuel: resolvePrice(priceIndex, p._id.toString()),
+    }));
 
     return NextResponse.json({
       success: true,

@@ -39,7 +39,9 @@ export default function BoutiqueHeader() {
   return (
     <header className="bg-ink text-ivory shadow-lg sticky top-0 z-20">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <Link href="/boutique" className="font-serif text-2xl tracking-wide text-ivory">
+        <Link href="/boutique" className="flex items-center gap-2 font-serif text-2xl tracking-wide text-ivory">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/icon-white.png" alt="" className="h-8 w-auto" />
           BE STYLED
         </Link>
 

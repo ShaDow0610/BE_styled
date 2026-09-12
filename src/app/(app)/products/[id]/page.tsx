@@ -34,21 +34,12 @@ interface Product {
   matiere?: string;
   poids_kg: number;
   statut: string;
-}
-
-interface Variant {
-  _id: string;
-  taille: string;
-  couleur: string;
-  modele?: string;
-  stock_quantite: number;
-  seuil_alerte: number;
-  sku_variante: string;
+  couleurs_disponibles: string[];
+  tailles_disponibles: string[];
 }
 
 interface Pricing {
   _id: string;
-  modele?: string;
   date_effet: string;
   cout_achat: number;
   devise_achat: string;
@@ -77,12 +68,11 @@ interface RefOption {
   nom: string;
 }
 
-type Tab = "infos" | "prix" | "variantes" | "images";
+type Tab = "infos" | "prix" | "images";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "infos", label: "Infos générales" },
   { key: "prix", label: "Prix" },
-  { key: "variantes", label: "Variantes" },
   { key: "images", label: "Images" },
 ];
 
@@ -108,10 +98,9 @@ function ProductDetailPageInner() {
 
   const initialTab = searchParams.get("tab");
   const [tab, setTab] = useState<Tab>(
-    initialTab === "prix" || initialTab === "variantes" || initialTab === "images" ? initialTab : "infos"
+    initialTab === "prix" || initialTab === "images" ? initialTab : "infos"
   );
   const [product, setProduct] = useState<Product | null>(null);
-  const [variants, setVariants] = useState<Variant[]>([]);
   const [pricingHistory, setPricingHistory] = useState<Pricing[]>([]);
   const [images, setImages] = useState<ImageItem[]>([]);
   const [brands, setBrands] = useState<RefOption[]>([]);
@@ -135,7 +124,6 @@ function ProductDetailPageInner() {
 
       const productData = await productRes.json();
       setProduct(productData.data);
-      setVariants(productData.data.variants || []);
       setPricingHistory(productData.data.pricingHistory || []);
       setImages(productData.data.images || []);
 
@@ -209,10 +197,7 @@ function ProductDetailPageInner() {
         <InfosTab product={product} brands={brands} suppliers={suppliers} onSaved={load} canWrite={canWrite} isAdmin={isAdmin} />
       )}
       {tab === "prix" && canSeeFinancials && (
-        <PrixTab productId={id} history={pricingHistory} variants={variants} onSaved={load} canWrite={canWrite} />
-      )}
-      {tab === "variantes" && (
-        <VariantesTab productId={id} variants={variants} onSaved={load} canWrite={canWrite} />
+        <PrixTab productId={id} history={pricingHistory} onSaved={load} canWrite={canWrite} />
       )}
       {tab === "images" && (
         <ImagesTab productId={id} images={images} onSaved={load} canWrite={canWrite} />
@@ -250,8 +235,11 @@ function InfosTab({
     marque_partenaire_id: product.marque_partenaire_id || "",
     fournisseur_id: product.fournisseur_id || "",
   });
+  const [couleurs, setCouleurs] = useState<string[]>(product.couleurs_disponibles || []);
+  const [tailles, setTailles] = useState<string[]>(product.tailles_disponibles || []);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
   const [error, setError] = useState("");
 
   const handleCancel = () => {
@@ -266,8 +254,25 @@ function InfosTab({
       marque_partenaire_id: product.marque_partenaire_id || "",
       fournisseur_id: product.fournisseur_id || "",
     });
+    setCouleurs(product.couleurs_disponibles || []);
+    setTailles(product.tailles_disponibles || []);
     setError("");
     setIsEditing(false);
+  };
+
+  const handleDuplicate = async () => {
+    setIsDuplicating(true);
+    try {
+      const res = await fetch(`/api/products/${product._id}/duplicate`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Échec de la duplication");
+      toast.success("Produit dupliqué");
+      router.push(`/products/${data.data._id}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      toast.error(message);
+      setIsDuplicating(false);
+    }
   };
 
   const handleOrigineChange = (origine: string) => {
@@ -275,7 +280,7 @@ function InfosTab({
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Supprimer définitivement "${product.nom}" ? Cette action supprime aussi ses variantes, prix et images. Elle est irréversible.`)) {
+    if (!window.confirm(`Supprimer définitivement "${product.nom}" ? Cette action supprime aussi ses prix et images. Elle est irréversible.`)) {
       return;
     }
     setIsDeleting(true);
@@ -304,6 +309,8 @@ function InfosTab({
           poids_kg: Number(form.poids_kg) || 0,
           marque_partenaire_id: form.marque_partenaire_id || null,
           fournisseur_id: form.fournisseur_id || null,
+          couleurs_disponibles: couleurs,
+          tailles_disponibles: tailles,
         }),
       });
       if (!res.ok) throw new Error("Échec de la sauvegarde");
@@ -341,18 +348,51 @@ function InfosTab({
               <p className="text-ink capitalize">{value}</p>
             </div>
           ))}
+          <div>
+            <p className="text-xs uppercase tracking-wide text-ink-soft/60">Couleurs disponibles</p>
+            {product.couleurs_disponibles?.length ? (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {product.couleurs_disponibles.map((c) => (
+                  <span key={c} className="px-2 py-0.5 bg-ivory-soft border border-silver-soft rounded-full text-xs text-ink">{c}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-ink">Aucune</p>
+            )}
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-ink-soft/60">Tailles disponibles</p>
+            {product.tailles_disponibles?.length ? (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {product.tailles_disponibles.map((t) => (
+                  <span key={t} className="px-2 py-0.5 bg-ivory-soft border border-silver-soft rounded-full text-xs text-ink">{t}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-ink">Aucune</p>
+            )}
+          </div>
           <div className="md:col-span-2">
             <p className="text-xs uppercase tracking-wide text-ink-soft/60">Description</p>
             <p className="text-ink whitespace-pre-wrap">{product.description || "—"}</p>
           </div>
         </div>
         {canWrite && (
-          <button
-            type="button"
-            onClick={() => setIsEditing(true)}
-            className="mt-6 px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
-            Modifier
-          </button>
+          <div className="mt-6 flex gap-3">
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
+              Modifier
+            </button>
+            <button
+              type="button"
+              onClick={handleDuplicate}
+              disabled={isDuplicating}
+              className="px-6 py-2 border border-silver-soft text-ink-soft rounded-lg hover:bg-ivory-soft transition-colors disabled:opacity-50">
+              {isDuplicating ? "Duplication..." : "Dupliquer le produit"}
+            </button>
+          </div>
         )}
       </div>
     );
@@ -447,6 +487,14 @@ function InfosTab({
           placeholder="Choisir une matière..."
         />
       </div>
+      <div>
+        <label className="block text-sm font-medium text-ink-soft mb-2">Couleurs disponibles</label>
+        <EditableMultiSelect type="couleur" values={couleurs} onChange={setCouleurs} />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-ink-soft mb-2">Tailles disponibles</label>
+        <EditableMultiSelect type="taille" values={tailles} onChange={setTailles} />
+      </div>
       <div className="md:col-span-2">
         <label className="block text-sm font-medium text-ink-soft mb-2">Description</label>
         <textarea
@@ -491,7 +539,6 @@ function InfosTab({
 }
 
 const PRICING_FORM_DEFAULTS = {
-  modele: "",
   cout_achat: "",
   devise_achat: "CNY",
   taux_change_applique: "1",
@@ -520,18 +567,15 @@ const COST_LABELS: Record<CostKey, string> = {
 function PrixTab({
   productId,
   history,
-  variants,
   onSaved,
   canWrite,
 }: {
   productId: string;
   history: Pricing[];
-  variants: Variant[];
   onSaved: () => void;
   canWrite: boolean;
 }) {
   const toast = useToast();
-  const modeles = Array.from(new Set(variants.map((v) => v.modele).filter((m): m is string => !!m)));
   const [form, setForm] = useState(PRICING_FORM_DEFAULTS);
   const [costs, setCosts] = useState(COST_TOGGLE_DEFAULTS);
   const [priceMode, setPriceMode] = useState<"marge" | "prix">("marge");
@@ -602,7 +646,6 @@ function PrixTab({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          modele: form.modele || undefined,
           cout_achat: Number(form.cout_achat),
           devise_achat: form.devise_achat,
           taux_change_applique: Number(form.taux_change_applique),
@@ -638,17 +681,6 @@ function PrixTab({
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6">
         <h2 className="font-serif text-xl text-ink mb-4">Calculateur de prix</h2>
         <div className="grid md:grid-cols-3 gap-4">
-          {modeles.length > 0 && (
-            <Field label="Modèle concerné">
-              <select
-                value={form.modele}
-                onChange={(e) => setForm({ ...form, modele: e.target.value })}
-                className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
-                <option value="">Tous modèles (prix par défaut)</option>
-                {modeles.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </Field>
-          )}
           <Field label="Coût achat">
             <input
               type="number" step="0.01" min="0" required
@@ -818,7 +850,6 @@ function PrixTab({
               <thead>
                 <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
                   <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Modèle</th>
                   <th className="py-2 pr-4">Revient</th>
                   <th className="py-2 pr-4">Marge</th>
                   <th className="py-2 pr-4">Revente</th>
@@ -831,7 +862,6 @@ function PrixTab({
                     <td className="py-2 pr-4 text-ink-soft">
                       {new Date(h.date_effet).toLocaleDateString("fr-FR")}
                     </td>
-                    <td className="py-2 pr-4 text-ink-soft">{h.modele || "Défaut"}</td>
                     <td className="py-2 pr-4 text-ink">{formatXAF(h.prix_revient_total)}</td>
                     <td className="py-2 pr-4 text-ink">{h.marge_pourcentage}%</td>
                     <td className="py-2 pr-4 font-semibold text-ink">{formatXAF(h.prix_revente_final)}</td>
@@ -852,156 +882,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <label className="block text-sm font-medium text-ink-soft mb-2">{label}</label>
       {children}
-    </div>
-  );
-}
-
-const VARIANT_FORM_DEFAULTS = { modele: "", stock_quantite: "0", seuil_alerte: "5" };
-
-function VariantesTab({
-  productId,
-  variants,
-  onSaved,
-  canWrite,
-}: {
-  productId: string;
-  variants: Variant[];
-  onSaved: () => void;
-  canWrite: boolean;
-}) {
-  const toast = useToast();
-  const [form, setForm] = useState(VARIANT_FORM_DEFAULTS);
-  const [tailles, setTailles] = useState<string[]>([]);
-  const [couleurs, setCouleurs] = useState<string[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    if (tailles.length === 0 || couleurs.length === 0) {
-      setError("Choisis au moins une taille et une couleur");
-      return;
-    }
-    setIsSaving(true);
-    try {
-      const res = await fetch(`/api/products/${productId}/variants`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          tailles,
-          couleurs,
-          stock_quantite: Number(form.stock_quantite) || 0,
-          seuil_alerte: Number(form.seuil_alerte) || 0,
-        }),
-      });
-      if (!res.ok) throw new Error("Échec de la création des variantes");
-      setForm(VARIANT_FORM_DEFAULTS);
-      setTailles([]);
-      setCouleurs([]);
-      const count = tailles.length * couleurs.length;
-      toast.success(count > 1 ? `${count} variantes ajoutées` : "Variante ajoutée");
-      onSaved();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDelete = async (variantId: string) => {
-    await fetch(`/api/products/${productId}/variants/${variantId}`, { method: "DELETE" });
-    toast.success("Variante supprimée");
-    onSaved();
-  };
-
-  const combosCount = tailles.length * couleurs.length;
-
-  return (
-    <div className="space-y-6">
-      {canWrite && (
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
-        <Field label="Modèle (optionnel)">
-          <input value={form.modele} onChange={(e) => setForm({ ...form, modele: e.target.value })}
-            placeholder="Ex: Croisé"
-            className="w-full max-w-sm px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
-        </Field>
-        <Field label="Tailles disponibles pour ce modèle">
-          <EditableMultiSelect type="taille" values={tailles} onChange={setTailles} />
-        </Field>
-        <Field label="Couleurs disponibles pour ce modèle">
-          <EditableMultiSelect type="couleur" values={couleurs} onChange={setCouleurs} />
-        </Field>
-        <div className="grid md:grid-cols-2 gap-4 max-w-md">
-          <Field label="Stock initial (par variante)">
-            <input type="number" min="0" value={form.stock_quantite} onChange={(e) => setForm({ ...form, stock_quantite: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
-          </Field>
-          <Field label="Seuil d'alerte">
-            <input type="number" min="0" value={form.seuil_alerte} onChange={(e) => setForm({ ...form, seuil_alerte: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
-          </Field>
-        </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <div>
-          <button type="submit" disabled={isSaving || combosCount === 0}
-            className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors disabled:opacity-50">
-            {isSaving
-              ? "Ajout..."
-              : combosCount > 1
-                ? `Ajouter les ${combosCount} variantes`
-                : "Ajouter la variante"}
-          </button>
-        </div>
-      </form>
-      )}
-
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="font-serif text-xl text-ink mb-4">Variantes existantes</h2>
-        {variants.length === 0 ? (
-          <p className="text-ink-soft/70 text-sm">Aucune variante pour le moment.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
-                  <th className="py-2 pr-4">SKU</th>
-                  <th className="py-2 pr-4">Modèle</th>
-                  <th className="py-2 pr-4">Taille</th>
-                  <th className="py-2 pr-4">Couleur</th>
-                  <th className="py-2 pr-4">Stock</th>
-                  <th className="py-2 pr-4">Seuil</th>
-                  {canWrite && <th className="py-2 pr-4"></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {variants.map((v) => (
-                  <tr key={v._id} className="border-b border-silver-soft/50">
-                    <td className="py-2 pr-4 text-ink">{v.sku_variante}</td>
-                    <td className="py-2 pr-4 text-ink-soft">{v.modele || "—"}</td>
-                    <td className="py-2 pr-4 text-ink-soft">{v.taille}</td>
-                    <td className="py-2 pr-4 text-ink-soft">{v.couleur}</td>
-                    <td className={`py-2 pr-4 font-medium ${v.stock_quantite <= v.seuil_alerte ? "text-red-600" : "text-ink"}`}>
-                      {v.stock_quantite}
-                    </td>
-                    <td className="py-2 pr-4 text-ink-soft/70">{v.seuil_alerte}</td>
-                    {canWrite && (
-                      <td className="py-2 pr-4">
-                        <button onClick={() => handleDelete(v._id)} className="text-red-600 hover:underline text-xs">
-                          Supprimer
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

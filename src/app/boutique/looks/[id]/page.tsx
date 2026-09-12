@@ -47,9 +47,6 @@ export default async function LookDetailPage({ params }: { params: Promise<{ id:
           {look.items.map((item) => (
             <div key={item._id} className="bg-white rounded-lg shadow p-4">
               <h3 className="font-medium text-ink text-sm">{item.nom}</h3>
-              <p className="text-ink-soft/70 text-xs mt-1">
-                {[item.modele, item.taille, item.couleur].filter(Boolean).join(" · ")}
-              </p>
               <p className="text-xs text-ink-soft/60 mt-2">Prix pièce</p>
               <Price xaf={item.prix} className="block text-sm font-semibold text-ink" />
             </div>

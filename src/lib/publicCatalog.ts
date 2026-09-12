@@ -1,11 +1,10 @@
 import mongoose from "mongoose";
 import { dbConnect } from "@/lib/db/connection";
 import Product from "@/lib/models/Product";
-import ProductVariant from "@/lib/models/ProductVariant";
 import ProductImage from "@/lib/models/ProductImage";
 import Look from "@/lib/models/Look";
 import LookItem from "@/lib/models/LookItem";
-import { buildPriceIndex, resolvePrice, resolveMinPrice } from "@/lib/priceResolver";
+import { buildPriceIndex, resolvePrice } from "@/lib/priceResolver";
 
 export interface PublicProduct {
   _id: string;
@@ -15,17 +14,9 @@ export interface PublicProduct {
   description: string;
   matiere: string;
   prix: number | null;
-  prix_a_partir_de: number | null;
   image: string | null;
-  variants: {
-    _id: string;
-    taille: string;
-    couleur: string;
-    modele?: string;
-    stock_quantite: number;
-    sku_variante: string;
-    prix: number | null;
-  }[];
+  couleurs_disponibles: string[];
+  tailles_disponibles: string[];
 }
 
 interface Filters {
@@ -42,10 +33,8 @@ function escapeRegExp(value: string): string {
 
 /**
  * Un produit est visible sur la vitrine s'il est en statut "disponible" ET
- * a au moins une variante en stock (cahier des charges §4 : le statut
- * logistique/de vente et la disponibilité réelle en stock sont deux choses
- * différentes — un produit "disponible" peut avoir toutes ses variantes
- * épuisées, auquel cas il ne doit pas apparaître sur la vitrine).
+ * a au moins une couleur ou une taille renseignée (sinon rien n'est
+ * réellement proposable à l'achat).
  */
 export async function getPublicProducts(filters: Filters = {}): Promise<PublicProduct[]> {
   await dbConnect();
@@ -53,6 +42,8 @@ export async function getPublicProducts(filters: Filters = {}): Promise<PublicPr
   const query: Record<string, unknown> = { statut: "disponible" };
   if (filters.categorie) query.categorie = filters.categorie;
   if (filters.q) query.nom = { $regex: escapeRegExp(filters.q), $options: "i" };
+  if (filters.couleur) query.couleurs_disponibles = filters.couleur;
+  if (filters.taille) query.tailles_disponibles = filters.taille;
 
   const products = await Product.find(query)
     .sort({ date_creation: -1 })
@@ -61,22 +52,10 @@ export async function getPublicProducts(filters: Filters = {}): Promise<PublicPr
 
   const productIds = products.map((p) => p._id);
 
-  const variantQuery: Record<string, unknown> = { product_id: { $in: productIds } };
-  if (filters.couleur) variantQuery.couleur = filters.couleur;
-  if (filters.taille) variantQuery.taille = filters.taille;
-
-  const [variants, priceIndex, images] = await Promise.all([
-    ProductVariant.find(variantQuery).lean(),
+  const [priceIndex, images] = await Promise.all([
     buildPriceIndex(productIds),
     ProductImage.find({ product_id: { $in: productIds } }).sort({ ordre_affichage: 1 }).lean(),
   ]);
-
-  const variantsByProduct = new Map<string, typeof variants>();
-  for (const v of variants) {
-    const key = v.product_id.toString();
-    if (!variantsByProduct.has(key)) variantsByProduct.set(key, []);
-    variantsByProduct.get(key)!.push(v);
-  }
 
   const imageByProduct = new Map<string, string>();
   for (const img of images) {
@@ -87,8 +66,6 @@ export async function getPublicProducts(filters: Filters = {}): Promise<PublicPr
   return products
     .map((p) => {
       const id = p._id.toString();
-      const productVariants = variantsByProduct.get(id) ?? [];
-      const prixDefaut = resolvePrice(priceIndex, id);
       return {
         _id: id,
         nom: p.nom,
@@ -96,21 +73,13 @@ export async function getPublicProducts(filters: Filters = {}): Promise<PublicPr
         categorie: p.categorie,
         description: p.description,
         matiere: p.matiere || "",
-        prix: prixDefaut,
-        prix_a_partir_de: prixDefaut == null ? resolveMinPrice(priceIndex, id) : null,
+        prix: resolvePrice(priceIndex, id),
         image: imageByProduct.get(id) ?? null,
-        variants: productVariants.map((v) => ({
-          _id: v._id.toString(),
-          taille: v.taille,
-          couleur: v.couleur,
-          modele: v.modele,
-          stock_quantite: v.stock_quantite,
-          sku_variante: v.sku_variante,
-          prix: resolvePrice(priceIndex, id, v.modele),
-        })),
+        couleurs_disponibles: p.couleurs_disponibles || [],
+        tailles_disponibles: p.tailles_disponibles || [],
       };
     })
-    .filter((p) => p.variants.some((v) => v.stock_quantite > 0));
+    .filter((p) => p.couleurs_disponibles.length > 0 || p.tailles_disponibles.length > 0);
 }
 
 export interface PublicProductDetail extends PublicProduct {
@@ -125,15 +94,16 @@ export async function getPublicProduct(id: string): Promise<PublicProductDetail 
   const product = await Product.findOne({ _id: id, statut: "disponible" }).lean();
   if (!product) return null;
 
-  const [variants, priceIndex, images] = await Promise.all([
-    ProductVariant.find({ product_id: id }).lean(),
+  const couleurs_disponibles = product.couleurs_disponibles || [];
+  const tailles_disponibles = product.tailles_disponibles || [];
+  if (couleurs_disponibles.length === 0 && tailles_disponibles.length === 0) return null;
+
+  const [priceIndex, images] = await Promise.all([
     buildPriceIndex([product._id]),
     ProductImage.find({ product_id: id }).sort({ ordre_affichage: 1 }).lean(),
   ]);
 
-  if (!variants.some((v) => v.stock_quantite > 0)) return null;
-
-  const prixDefaut = resolvePrice(priceIndex, id);
+  const prix = resolvePrice(priceIndex, id);
 
   return {
     _id: product._id.toString(),
@@ -142,19 +112,11 @@ export async function getPublicProduct(id: string): Promise<PublicProductDetail 
     categorie: product.categorie,
     description: product.description,
     matiere: product.matiere || "",
-    prix: prixDefaut,
-    prix_a_partir_de: prixDefaut == null ? resolveMinPrice(priceIndex, id) : null,
+    prix,
     image: images[0]?.url ?? null,
     images: images.map((img) => img.url),
-    variants: variants.map((v) => ({
-      _id: v._id.toString(),
-      taille: v.taille,
-      couleur: v.couleur,
-      modele: v.modele,
-      stock_quantite: v.stock_quantite,
-      sku_variante: v.sku_variante,
-      prix: resolvePrice(priceIndex, id, v.modele),
-    })),
+    couleurs_disponibles,
+    tailles_disponibles,
   };
 }
 
@@ -170,9 +132,6 @@ export interface PublicLookDetail extends PublicLook {
   items: {
     _id: string;
     nom: string;
-    taille: string;
-    couleur: string;
-    modele?: string;
     prix: number | null;
   }[];
 }
@@ -186,29 +145,20 @@ export async function getPublicLook(id: string): Promise<PublicLookDetail | null
   if (!look) return null;
 
   const lookItems = await LookItem.find({ look_id: id })
-    .populate({
-      path: "product_variant_id",
-      select: "taille couleur modele product_id",
-      populate: { path: "product_id", select: "nom" },
-    })
+    .populate({ path: "product_id", select: "nom" })
     .lean();
 
   if (lookItems.length === 0) return null;
 
-  const productIds = (lookItems as any[])
-    .map((i) => i.product_variant_id?.product_id?._id)
-    .filter(Boolean);
+  const productIds = (lookItems as any[]).map((i) => i.product_id?._id).filter(Boolean);
   const priceIndex = await buildPriceIndex(productIds);
 
   const items = (lookItems as any[])
-    .filter((i) => i.product_variant_id)
+    .filter((i) => i.product_id)
     .map((i) => ({
       _id: i._id.toString(),
-      nom: i.product_variant_id.product_id?.nom ?? "Produit supprimé",
-      taille: i.product_variant_id.taille,
-      couleur: i.product_variant_id.couleur,
-      modele: i.product_variant_id.modele,
-      prix: resolvePrice(priceIndex, i.product_variant_id.product_id._id.toString(), i.product_variant_id.modele),
+      nom: i.product_id.nom ?? "Produit supprimé",
+      prix: resolvePrice(priceIndex, i.product_id._id.toString()),
     }));
 
   return {

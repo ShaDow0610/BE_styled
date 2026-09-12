@@ -3,7 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 interface IInvoiceLine {
   order_tracking_id: mongoose.Schema.Types.ObjectId;
   produit_nom: string;
-  sku_variante: string;
+  couleur?: string;
+  taille?: string;
   quantite: number;
   prix_unitaire: number;
   montant_total: number;
@@ -25,7 +26,8 @@ const InvoiceLineSchema = new Schema<IInvoiceLine>(
   {
     order_tracking_id: { type: Schema.Types.ObjectId, ref: 'OrderTracking', required: true },
     produit_nom: { type: String, required: true },
-    sku_variante: { type: String, required: true },
+    couleur: { type: String, default: '' },
+    taille: { type: String, default: '' },
     quantite: { type: Number, required: true },
     prix_unitaire: { type: Number, required: true },
     montant_total: { type: Number, required: true },

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import Product from '@/lib/models/Product';
-import ProductVariant from '@/lib/models/ProductVariant';
 import ProductPricing from '@/lib/models/ProductPricing';
 import ProductImage from '@/lib/models/ProductImage';
 import { canWrite, getRole } from '@/lib/authz';
@@ -18,15 +17,14 @@ export async function GET(_request: NextRequest, { params }: Params) {
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
     }
 
-    const [variants, pricingHistory, images] = await Promise.all([
-      ProductVariant.find({ product_id: id }).lean(),
+    const [pricingHistory, images] = await Promise.all([
       ProductPricing.find({ product_id: id }).sort({ date_effet: -1 }).lean(),
       ProductImage.find({ product_id: id }).sort({ ordre_affichage: 1 }).lean(),
     ]);
 
     return NextResponse.json({
       success: true,
-      data: { ...product, variants, pricingHistory, images },
+      data: { ...product, pricingHistory, images },
     });
   } catch (error) {
     console.error('Error fetching product:', error);
@@ -72,7 +70,6 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
     // Suppression en cascade — plus rien ne doit référencer ce produit.
     await Promise.all([
-      ProductVariant.deleteMany({ product_id: id }),
       ProductPricing.deleteMany({ product_id: id }),
       ProductImage.deleteMany({ product_id: id }),
     ]);

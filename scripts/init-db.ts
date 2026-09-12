@@ -8,7 +8,6 @@ import mongoose from 'mongoose';
 import bcryptjs from 'bcryptjs';
 import User from '../src/lib/models/User';
 import Product from '../src/lib/models/Product';
-import ProductVariant from '../src/lib/models/ProductVariant';
 import ProductPricing from '../src/lib/models/ProductPricing';
 import Brand from '../src/lib/models/Brand';
 import Supplier from '../src/lib/models/Supplier';
@@ -30,7 +29,7 @@ async function initDB() {
     // collections/index (ex: index unique sur "sku") ne correspondent plus
     // au nouveau modèle. On repart d'une collection propre.
     console.log('🧹 Nettoyage des anciennes collections obsolètes...');
-    for (const name of ['products', 'stocks', 'orders', 'outfits', 'productpricings']) {
+    for (const name of ['products', 'stocks', 'orders', 'outfits', 'productpricings', 'productvariants']) {
       await mongoose.connection.db?.dropCollection(name).catch(() => {});
     }
     console.log('✓ Nettoyage effectué');
@@ -98,10 +97,8 @@ async function initDB() {
         fournisseur_id: supplierChineDoc._id,
         poids_kg: 0.4,
         statut: 'disponible',
-        variants: [
-          { taille: 'M', couleur: 'noir', stock_quantite: 20, seuil_alerte: 5, sku_variante: 'BSTY-PANT-001-M-NOIR' },
-          { taille: 'L', couleur: 'noir', stock_quantite: 3, seuil_alerte: 5, sku_variante: 'BSTY-PANT-001-L-NOIR' },
-        ],
+        couleurs_disponibles: ['noir'],
+        tailles_disponibles: ['M', 'L'],
         pricing: {
           cout_achat: 40, devise_achat: 'CNY', taux_change_applique: 0.19,
           cout_transport: 3, mode_transport: 'bateau', delai_estime_jours: 35,
@@ -117,10 +114,8 @@ async function initDB() {
         fournisseur_id: supplierLocalDoc._id,
         poids_kg: 0.3,
         statut: 'disponible',
-        variants: [
-          { taille: 'S', couleur: 'blanc', stock_quantite: 15, seuil_alerte: 5, sku_variante: 'BSTY-CHEM-001-S-BLANC' },
-          { taille: 'M', couleur: 'blanc', stock_quantite: 4, seuil_alerte: 5, sku_variante: 'BSTY-CHEM-001-M-BLANC' },
-        ],
+        couleurs_disponibles: ['blanc'],
+        tailles_disponibles: ['S', 'M'],
         pricing: {
           cout_achat: 8000, devise_achat: 'XAF', taux_change_applique: 1,
           cout_transport: 0, mode_transport: 'local', delai_estime_jours: 3,
@@ -137,9 +132,8 @@ async function initDB() {
         fournisseur_id: supplierChineDoc._id,
         poids_kg: 0.15,
         statut: 'en_transit',
-        variants: [
-          { taille: 'unique', couleur: 'argent', stock_quantite: 0, seuil_alerte: 3, sku_variante: 'BSTY-MONT-001-U-ARGENT' },
-        ],
+        couleurs_disponibles: ['argent'],
+        tailles_disponibles: ['unique'],
         pricing: {
           cout_achat: 120, devise_achat: 'USD', taux_change_applique: 0.0017,
           cout_transport: 5, mode_transport: 'avion', delai_estime_jours: 10,
@@ -155,10 +149,8 @@ async function initDB() {
         fournisseur_id: supplierChineDoc._id,
         poids_kg: 0.9,
         statut: 'disponible',
-        variants: [
-          { taille: '40', couleur: 'blanc', stock_quantite: 12, seuil_alerte: 4, sku_variante: 'BSTY-CHAU-001-40-BLANC' },
-          { taille: '42', couleur: 'blanc', stock_quantite: 2, seuil_alerte: 4, sku_variante: 'BSTY-CHAU-001-42-BLANC' },
-        ],
+        couleurs_disponibles: ['blanc'],
+        tailles_disponibles: ['40', '42'],
         pricing: {
           cout_achat: 90, devise_achat: 'CNY', taux_change_applique: 0.19,
           cout_transport: 4, mode_transport: 'bateau', delai_estime_jours: 35,
@@ -168,21 +160,13 @@ async function initDB() {
     ];
 
     for (const seed of productsSeed) {
-      const { variants, pricing, ...productFields } = seed;
+      const { pricing, ...productFields } = seed;
 
       const product = await Product.findOneAndUpdate(
         { reference: productFields.reference },
         productFields,
         { upsert: true, new: true }
       );
-
-      for (const variant of variants) {
-        await ProductVariant.findOneAndUpdate(
-          { sku_variante: variant.sku_variante },
-          { ...variant, product_id: product._id },
-          { upsert: true, new: true }
-        );
-      }
 
       const existingPricing = await ProductPricing.findOne({ product_id: product._id });
       if (!existingPricing) {
@@ -203,19 +187,20 @@ async function initDB() {
     const existingSale = await OrderTracking.findOne({ type: 'commande_client', statut: 'livre_client' });
     if (!existingSale) {
       const salesSeed = [
-        { sku: 'BSTY-PANT-001-M-NOIR', quantite: 2, joursAvant: 3 },
-        { sku: 'BSTY-CHEM-001-S-BLANC', quantite: 1, joursAvant: 8 },
-        { sku: 'BSTY-CHAU-001-40-BLANC', quantite: 3, joursAvant: 15 },
+        { reference: 'BSTY-PANT-001', couleur: 'noir', taille: 'M', quantite: 2, joursAvant: 3 },
+        { reference: 'BSTY-CHEM-001', couleur: 'blanc', taille: 'S', quantite: 1, joursAvant: 8 },
+        { reference: 'BSTY-CHAU-001', couleur: 'blanc', taille: '40', quantite: 3, joursAvant: 15 },
       ];
       for (const sale of salesSeed) {
-        const variant = await ProductVariant.findOne({ sku_variante: sale.sku });
-        if (!variant) continue;
+        const product = await Product.findOne({ reference: sale.reference });
+        if (!product) continue;
         await OrderTracking.create({
-          product_variant_id: variant._id,
+          product_id: product._id,
+          couleur: sale.couleur,
+          taille: sale.taille,
           type: 'commande_client',
           statut: 'livre_client',
           quantite: sale.quantite,
-          stock_applique: true,
           date_maj: new Date(Date.now() - sale.joursAvant * 24 * 60 * 60 * 1000),
         });
       }

@@ -14,7 +14,11 @@ export default function BoutiqueFooter() {
     <footer className="mt-20 border-t border-silver-soft bg-white">
       <div className="container mx-auto px-4 py-12 grid sm:grid-cols-3 gap-8">
         <div>
-          <p className="font-serif text-xl text-ink mb-2">BE STYLED</p>
+          <div className="flex items-center gap-2 mb-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/icon-black.png" alt="" className="h-7 w-auto" />
+            <p className="font-serif text-xl text-ink">BE STYLED</p>
+          </div>
           <p className="text-sm text-ink-soft/70">Le style, votre signature.</p>
         </div>
 

@@ -43,7 +43,9 @@ export default async function ProductDetailPage({ params }: { params: Params }) 
           <WhatsAppOrderButton
             productNom={product.nom}
             productReference={product.reference}
-            variants={product.variants}
+            prix={product.prix}
+            couleursDisponibles={product.couleurs_disponibles}
+            taillesDisponibles={product.tailles_disponibles}
           />
         </div>
       </div>

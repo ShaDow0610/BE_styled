@@ -11,10 +11,9 @@ export interface ProductListItem {
   categorie: string;
   origine: "import_chine" | "local";
   statut: string;
-  stock_total?: number;
-  tailles?: string[];
+  couleurs_disponibles?: string[];
+  tailles_disponibles?: string[];
   prix_actuel?: number | null;
-  prix_a_partir_de?: number | null;
 }
 
 interface ProductListProps {
@@ -43,7 +42,7 @@ export const ProductList: React.FC<ProductListProps> = ({ products }) => {
             <th className="py-3 px-4">Nom</th>
             <th className="py-3 px-4">Catégorie</th>
             <th className="py-3 px-4">Statut</th>
-            <th className="py-3 px-4">Stock</th>
+            <th className="py-3 px-4">Couleurs dispo.</th>
             <th className="py-3 px-4">Tailles dispo.</th>
             {canSeeFinancials && <th className="py-3 px-4">Prix</th>}
             <th className="py-3 px-4"></th>
@@ -60,17 +59,15 @@ export const ProductList: React.FC<ProductListProps> = ({ products }) => {
                   {STATUT_LABELS[product.statut] ?? product.statut}
                 </span>
               </td>
-              <td className="py-3 px-4 text-ink-soft">{product.stock_total ?? 0}</td>
               <td className="py-3 px-4 text-ink-soft">
-                {product.tailles && product.tailles.length > 0 ? product.tailles.join(", ") : "—"}
+                {product.couleurs_disponibles && product.couleurs_disponibles.length > 0 ? product.couleurs_disponibles.join(", ") : "—"}
+              </td>
+              <td className="py-3 px-4 text-ink-soft">
+                {product.tailles_disponibles && product.tailles_disponibles.length > 0 ? product.tailles_disponibles.join(", ") : "—"}
               </td>
               {canSeeFinancials && (
                 <td className="py-3 px-4 text-ink font-semibold whitespace-nowrap">
-                  {product.prix_actuel != null
-                    ? formatXAF(product.prix_actuel)
-                    : product.prix_a_partir_de != null
-                      ? `à partir de ${formatXAF(product.prix_a_partir_de)}`
-                      : "—"}
+                  {product.prix_actuel != null ? formatXAF(product.prix_actuel) : "—"}
                 </td>
               )}
               <td className="py-3 px-4">

@@ -35,7 +35,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
       className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-      <h2 className="font-serif text-2xl text-ink mb-6">Connexion</h2>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/logo-full-black.png" alt="Be Styled" className="h-24 w-auto mx-auto mb-6" />
+      <h2 className="font-serif text-2xl text-ink mb-6 text-center">Connexion</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>

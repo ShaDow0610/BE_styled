@@ -7,7 +7,8 @@ import { formatXAF } from "@/lib/currency";
 
 interface InvoiceLine {
   produit_nom: string;
-  sku_variante: string;
+  couleur?: string;
+  taille?: string;
   quantite: number;
   prix_unitaire: number;
   montant_total: number;
@@ -90,7 +91,8 @@ export default function InvoiceDetailPage() {
       <div className="bg-white rounded-lg shadow p-8 print:shadow-none print:p-0">
         <div className="flex justify-between items-start mb-8">
           <div>
-            <h1 className="font-serif text-3xl text-ink">BE STYLED</h1>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/logo-full-black.png" alt="Be Styled" className="h-16 w-auto" />
             {BUSINESS_ADDRESS && <p className="text-sm text-ink-soft mt-1">{BUSINESS_ADDRESS}</p>}
             {BUSINESS_PHONE && <p className="text-sm text-ink-soft">{BUSINESS_PHONE}</p>}
           </div>
@@ -113,7 +115,7 @@ export default function InvoiceDetailPage() {
           <thead>
             <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
               <th className="py-2 pr-4">Produit</th>
-              <th className="py-2 pr-4">SKU</th>
+              <th className="py-2 pr-4">Couleur / Taille</th>
               <th className="py-2 pr-4">Quantité</th>
               <th className="py-2 pr-4">Prix unitaire</th>
               <th className="py-2 pr-4 text-right">Montant</th>
@@ -123,7 +125,7 @@ export default function InvoiceDetailPage() {
             {invoice.lignes.map((l, idx) => (
               <tr key={idx} className="border-b border-silver-soft/50">
                 <td className="py-2 pr-4 text-ink">{l.produit_nom}</td>
-                <td className="py-2 pr-4 text-ink-soft">{l.sku_variante}</td>
+                <td className="py-2 pr-4 text-ink-soft">{[l.couleur, l.taille].filter(Boolean).join(" / ")}</td>
                 <td className="py-2 pr-4 text-ink-soft">{l.quantite}</td>
                 <td className="py-2 pr-4 text-ink-soft">{formatXAF(l.prix_unitaire)}</td>
                 <td className="py-2 pr-4 text-ink text-right font-medium">{formatXAF(l.montant_total)}</td>
