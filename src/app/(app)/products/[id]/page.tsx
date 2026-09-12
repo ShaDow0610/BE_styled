@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useUserRole } from "@/lib/useUserRole";
 import { useToast } from "@/components/common/ToastProvider";
 import EditableSelect from "@/components/common/EditableSelect";
+import EditableMultiSelect from "@/components/common/EditableMultiSelect";
+import PackagingSelect from "@/components/common/PackagingSelect";
 import { formatXAF } from "@/lib/currency";
 
 const CATEGORIES = [
@@ -236,6 +238,7 @@ function InfosTab({
 }) {
   const toast = useToast();
   const router = useRouter();
+  const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({
     nom: product.nom,
     categorie: product.categorie,
@@ -250,6 +253,26 @@ function InfosTab({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
+
+  const handleCancel = () => {
+    setForm({
+      nom: product.nom,
+      categorie: product.categorie,
+      origine: product.origine,
+      description: product.description || "",
+      matiere: product.matiere || "",
+      poids_kg: String(product.poids_kg ?? 0),
+      statut: product.statut,
+      marque_partenaire_id: product.marque_partenaire_id || "",
+      fournisseur_id: product.fournisseur_id || "",
+    });
+    setError("");
+    setIsEditing(false);
+  };
+
+  const handleOrigineChange = (origine: string) => {
+    setForm((f) => ({ ...f, origine, poids_kg: origine === "import_chine" ? f.poids_kg : "0" }));
+  };
 
   const handleDelete = async () => {
     if (!window.confirm(`Supprimer définitivement "${product.nom}" ? Cette action supprime aussi ses variantes, prix et images. Elle est irréversible.`)) {
@@ -285,6 +308,7 @@ function InfosTab({
       });
       if (!res.ok) throw new Error("Échec de la sauvegarde");
       toast.success("Informations enregistrées");
+      setIsEditing(false);
       onSaved();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
@@ -294,6 +318,45 @@ function InfosTab({
       setIsSaving(false);
     }
   };
+
+  if (!isEditing) {
+    const brandName = brands.find((b) => b._id === product.marque_partenaire_id)?.nom;
+    const supplierName = suppliers.find((s) => s._id === product.fournisseur_id)?.nom;
+    const rows: [string, string][] = [
+      ["Nom", product.nom],
+      ["Statut", product.statut],
+      ["Catégorie", product.categorie],
+      ["Origine", product.origine === "import_chine" ? "Import Chine" : "Local"],
+      ...(product.origine === "import_chine" ? ([["Poids", `${product.poids_kg ?? 0} kg`]] as [string, string][]) : []),
+      ["Marque partenaire", brandName || "Aucune"],
+      ["Fournisseur", supplierName || "Aucun"],
+      ["Matière / tissu", product.matiere || "—"],
+    ];
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="grid md:grid-cols-2 gap-4">
+          {rows.map(([label, value]) => (
+            <div key={label}>
+              <p className="text-xs uppercase tracking-wide text-ink-soft/60">{label}</p>
+              <p className="text-ink capitalize">{value}</p>
+            </div>
+          ))}
+          <div className="md:col-span-2">
+            <p className="text-xs uppercase tracking-wide text-ink-soft/60">Description</p>
+            <p className="text-ink whitespace-pre-wrap">{product.description || "—"}</p>
+          </div>
+        </div>
+        {canWrite && (
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className="mt-6 px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
+            Modifier
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 grid md:grid-cols-2 gap-4">
@@ -332,23 +395,25 @@ function InfosTab({
         <label className="block text-sm font-medium text-ink-soft mb-2">Origine</label>
         <select
           value={form.origine}
-          onChange={(e) => setForm({ ...form, origine: e.target.value })}
+          onChange={(e) => handleOrigineChange(e.target.value)}
           className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
           <option value="import_chine">Import Chine</option>
           <option value="local">Local</option>
         </select>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-ink-soft mb-2">Poids (kg)</label>
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          value={form.poids_kg}
-          onChange={(e) => setForm({ ...form, poids_kg: e.target.value })}
-          className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-        />
-      </div>
+      {form.origine === "import_chine" && (
+        <div>
+          <label className="block text-sm font-medium text-ink-soft mb-2">Poids (kg)</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={form.poids_kg}
+            onChange={(e) => setForm({ ...form, poids_kg: e.target.value })}
+            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+          />
+        </div>
+      )}
       <div>
         <label className="block text-sm font-medium text-ink-soft mb-2">Marque partenaire</label>
         <select
@@ -394,12 +459,18 @@ function InfosTab({
       {error && <p className="md:col-span-2 text-sm text-red-600">{error}</p>}
       </fieldset>
       {canWrite && (
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 flex gap-3">
           <button
             type="submit"
             disabled={isSaving}
             className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors disabled:opacity-50">
             {isSaving ? "Enregistrement..." : "Enregistrer"}
+          </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-6 py-2 border border-silver-soft text-ink-soft rounded-lg hover:bg-ivory-soft transition-colors">
+            Annuler
           </button>
         </div>
       )}
@@ -658,8 +729,8 @@ function PrixTab({
 
               {(Object.keys(COST_TOGGLE_DEFAULTS) as CostKey[]).map((key) => (
                 <Field key={key} label={COST_LABELS[key]}>
-                  <div className="flex gap-2">
-                    <div className="flex border border-silver-soft rounded-lg overflow-hidden shrink-0">
+                  <div className={key === "cout_packaging" && costs[key].actif ? "space-y-2" : "flex gap-2"}>
+                    <div className="flex border border-silver-soft rounded-lg overflow-hidden shrink-0 w-fit">
                       <button
                         type="button"
                         onClick={() => setCosts({ ...costs, [key]: { actif: false, valeur: "" } })}
@@ -673,7 +744,12 @@ function PrixTab({
                         Oui
                       </button>
                     </div>
-                    {costs[key].actif && (
+                    {costs[key].actif && key === "cout_packaging" && (
+                      <PackagingSelect
+                        onTotalChange={(total) => setCosts((c) => ({ ...c, cout_packaging: { actif: true, valeur: String(total) } }))}
+                      />
+                    )}
+                    {costs[key].actif && key !== "cout_packaging" && (
                       <input
                         type="number" step="0.01" min="0" autoFocus
                         value={costs[key].valeur}
@@ -780,7 +856,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const VARIANT_FORM_DEFAULTS = { taille: "", couleur: "", modele: "", stock_quantite: "0", seuil_alerte: "5" };
+const VARIANT_FORM_DEFAULTS = { modele: "", stock_quantite: "0", seuil_alerte: "5" };
 
 function VariantesTab({
   productId,
@@ -795,26 +871,37 @@ function VariantesTab({
 }) {
   const toast = useToast();
   const [form, setForm] = useState(VARIANT_FORM_DEFAULTS);
+  const [tailles, setTailles] = useState<string[]>([]);
+  const [couleurs, setCouleurs] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
     setError("");
+    if (tailles.length === 0 || couleurs.length === 0) {
+      setError("Choisis au moins une taille et une couleur");
+      return;
+    }
+    setIsSaving(true);
     try {
       const res = await fetch(`/api/products/${productId}/variants`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          tailles,
+          couleurs,
           stock_quantite: Number(form.stock_quantite) || 0,
           seuil_alerte: Number(form.seuil_alerte) || 0,
         }),
       });
-      if (!res.ok) throw new Error("Échec de la création de la variante");
+      if (!res.ok) throw new Error("Échec de la création des variantes");
       setForm(VARIANT_FORM_DEFAULTS);
-      toast.success("Variante ajoutée");
+      setTailles([]);
+      setCouleurs([]);
+      const count = tailles.length * couleurs.length;
+      toast.success(count > 1 ? `${count} variantes ajoutées` : "Variante ajoutée");
       onSaved();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
@@ -831,33 +918,42 @@ function VariantesTab({
     onSaved();
   };
 
+  const combosCount = tailles.length * couleurs.length;
+
   return (
     <div className="space-y-6">
       {canWrite && (
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 grid md:grid-cols-3 gap-4">
-        <Field label="Taille">
-          <EditableSelect type="taille" required value={form.taille} onChange={(v) => setForm({ ...form, taille: v })} placeholder="Choisir une taille..." />
-        </Field>
-        <Field label="Couleur">
-          <EditableSelect type="couleur" required value={form.couleur} onChange={(v) => setForm({ ...form, couleur: v })} placeholder="Choisir une couleur..." />
-        </Field>
+      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
         <Field label="Modèle (optionnel)">
           <input value={form.modele} onChange={(e) => setForm({ ...form, modele: e.target.value })}
-            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
+            placeholder="Ex: Croisé"
+            className="w-full max-w-sm px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
         </Field>
-        <Field label="Stock">
-          <input type="number" min="0" value={form.stock_quantite} onChange={(e) => setForm({ ...form, stock_quantite: e.target.value })}
-            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
+        <Field label="Tailles disponibles pour ce modèle">
+          <EditableMultiSelect type="taille" values={tailles} onChange={setTailles} />
         </Field>
-        <Field label="Seuil d'alerte">
-          <input type="number" min="0" value={form.seuil_alerte} onChange={(e) => setForm({ ...form, seuil_alerte: e.target.value })}
-            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
+        <Field label="Couleurs disponibles pour ce modèle">
+          <EditableMultiSelect type="couleur" values={couleurs} onChange={setCouleurs} />
         </Field>
-        {error && <p className="md:col-span-3 text-sm text-red-600">{error}</p>}
-        <div className="md:col-span-3">
-          <button type="submit" disabled={isSaving}
+        <div className="grid md:grid-cols-2 gap-4 max-w-md">
+          <Field label="Stock initial (par variante)">
+            <input type="number" min="0" value={form.stock_quantite} onChange={(e) => setForm({ ...form, stock_quantite: e.target.value })}
+              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
+          </Field>
+          <Field label="Seuil d'alerte">
+            <input type="number" min="0" value={form.seuil_alerte} onChange={(e) => setForm({ ...form, seuil_alerte: e.target.value })}
+              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
+          </Field>
+        </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div>
+          <button type="submit" disabled={isSaving || combosCount === 0}
             className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors disabled:opacity-50">
-            {isSaving ? "Ajout..." : "Ajouter la variante"}
+            {isSaving
+              ? "Ajout..."
+              : combosCount > 1
+                ? `Ajouter les ${combosCount} variantes`
+                : "Ajouter la variante"}
           </button>
         </div>
       </form>

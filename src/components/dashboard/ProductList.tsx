@@ -1,13 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import Link from "next/link";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useUserRole } from "@/lib/useUserRole";
 import { formatXAF } from "@/lib/currency";
-
-gsap.registerPlugin(ScrollTrigger);
 
 export interface ProductListItem {
   _id: string;
@@ -17,6 +12,7 @@ export interface ProductListItem {
   origine: "import_chine" | "local";
   statut: string;
   stock_total?: number;
+  tailles?: string[];
   prix_actuel?: number | null;
   prix_a_partir_de?: number | null;
 }
@@ -37,71 +33,55 @@ const STATUT_LABELS: Record<string, string> = {
 
 export const ProductList: React.FC<ProductListProps> = ({ products }) => {
   const { canSeeFinancials } = useUserRole();
-  const listRef = useRef<HTMLDivElement>(null);
-  const itemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
-
-  useEffect(() => {
-    if (!listRef.current) return;
-
-    itemsRef.current.forEach((item, index) => {
-      if (item) {
-        gsap.fromTo(
-          item,
-          { opacity: 0, x: -50 },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 0.5,
-            delay: index * 0.1,
-            scrollTrigger: {
-              trigger: item,
-              start: "top 85%",
-              once: true,
-            },
-          },
-        );
-      }
-    });
-
-    return () => {
-      ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
-    };
-  }, [products]);
 
   return (
-    <div ref={listRef} className="space-y-4">
-      {products.map((product, index) => (
-        <Link
-          key={product._id}
-          href={`/products/${product._id}`}
-          ref={(el) => {
-            itemsRef.current[index] = el;
-          }}
-          className="block bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-ink">{product.nom}</h3>
-              <div className="flex flex-wrap gap-4 mt-2 text-sm text-ink-soft/70">
-                <span>Réf: {product.reference}</span>
-                <span className="capitalize">Catégorie: {product.categorie}</span>
-                <span>Stock: {product.stock_total ?? 0}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {canSeeFinancials && product.prix_actuel != null && (
-                <p className="text-xl font-bold text-ink">{formatXAF(product.prix_actuel)}</p>
+    <div className="bg-white rounded-lg shadow overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
+            <th className="py-3 px-4">Référence</th>
+            <th className="py-3 px-4">Nom</th>
+            <th className="py-3 px-4">Catégorie</th>
+            <th className="py-3 px-4">Statut</th>
+            <th className="py-3 px-4">Stock</th>
+            <th className="py-3 px-4">Tailles dispo.</th>
+            {canSeeFinancials && <th className="py-3 px-4">Prix</th>}
+            <th className="py-3 px-4"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {products.map((product) => (
+            <tr key={product._id} className="border-b border-silver-soft/50 hover:bg-ivory-soft/60">
+              <td className="py-3 px-4 text-ink-soft whitespace-nowrap">{product.reference}</td>
+              <td className="py-3 px-4 text-ink font-medium">{product.nom}</td>
+              <td className="py-3 px-4 text-ink-soft capitalize">{product.categorie}</td>
+              <td className="py-3 px-4">
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-ivory-soft text-ink-soft whitespace-nowrap">
+                  {STATUT_LABELS[product.statut] ?? product.statut}
+                </span>
+              </td>
+              <td className="py-3 px-4 text-ink-soft">{product.stock_total ?? 0}</td>
+              <td className="py-3 px-4 text-ink-soft">
+                {product.tailles && product.tailles.length > 0 ? product.tailles.join(", ") : "—"}
+              </td>
+              {canSeeFinancials && (
+                <td className="py-3 px-4 text-ink font-semibold whitespace-nowrap">
+                  {product.prix_actuel != null
+                    ? formatXAF(product.prix_actuel)
+                    : product.prix_a_partir_de != null
+                      ? `à partir de ${formatXAF(product.prix_a_partir_de)}`
+                      : "—"}
+                </td>
               )}
-              {canSeeFinancials && product.prix_actuel == null && product.prix_a_partir_de != null && (
-                <p className="text-sm font-semibold text-ink-soft">à partir de {formatXAF(product.prix_a_partir_de)}</p>
-              )}
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-ivory-soft text-ink-soft">
-                {STATUT_LABELS[product.statut] ?? product.statut}
-              </span>
-            </div>
-          </div>
-        </Link>
-      ))}
+              <td className="py-3 px-4">
+                <Link href={`/products/${product._id}`} className="text-ink underline hover:no-underline whitespace-nowrap">
+                  Modifier
+                </Link>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

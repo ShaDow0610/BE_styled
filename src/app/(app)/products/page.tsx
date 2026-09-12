@@ -206,7 +206,7 @@ export default function ProductsPage() {
                 <button
                   key={o}
                   type="button"
-                  onClick={() => setForm({ ...form, origine: o })}
+                  onClick={() => setForm({ ...form, origine: o, poids_kg: o === "import_chine" ? form.poids_kg : "" })}
                   className={`px-4 py-2 rounded-lg text-sm transition-colors ${
                     form.origine === o
                       ? "bg-ink text-ivory"
@@ -217,17 +217,19 @@ export default function ProductsPage() {
               ))}
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Poids (kg)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={form.poids_kg}
-              onChange={(e) => setForm({ ...form, poids_kg: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-            />
-          </div>
+          {form.origine === "import_chine" && (
+            <div>
+              <label className="block text-sm font-medium text-ink-soft mb-2">Poids (kg)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.poids_kg}
+                onChange={(e) => setForm({ ...form, poids_kg: e.target.value })}
+                className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+              />
+            </div>
+          )}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-ink-soft mb-2">Description</label>
             <textarea

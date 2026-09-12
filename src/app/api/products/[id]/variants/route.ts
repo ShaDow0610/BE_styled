@@ -59,6 +59,30 @@ export async function POST(request: NextRequest, { params }: Params) {
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
     }
 
+    // Création par lot : une combinaison taille×couleur par variante, générées
+    // séquentiellement pour que la vérification d'unicité du SKU voie bien les
+    // combinaisons déjà créées dans ce même lot.
+    if (Array.isArray(body.tailles) && Array.isArray(body.couleurs)) {
+      const { tailles, couleurs, modele, stock_quantite, seuil_alerte } = body;
+      const created = [];
+      for (const taille of tailles) {
+        for (const couleur of couleurs) {
+          const sku_variante = await generateSku(product.reference, modele, taille, couleur);
+          const variant = await ProductVariant.create({
+            product_id: id,
+            taille,
+            couleur,
+            modele: modele || undefined,
+            stock_quantite: stock_quantite ?? 0,
+            seuil_alerte: seuil_alerte ?? 5,
+            sku_variante,
+          });
+          created.push(variant);
+        }
+      }
+      return NextResponse.json({ success: true, data: created }, { status: 201 });
+    }
+
     const sku_variante = await generateSku(product.reference, body.modele, body.taille, body.couleur);
     const variant = await ProductVariant.create({ ...body, product_id: id, sku_variante });
     return NextResponse.json({ success: true, data: variant }, { status: 201 });

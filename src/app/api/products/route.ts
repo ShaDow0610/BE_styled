@@ -59,16 +59,17 @@ export async function GET(request: NextRequest) {
     const total = await Product.countDocuments(query);
     const productIds = products.map((p) => p._id);
 
-    // Stock total et prix agrégés sans N+1 par produit.
+    // Stock total, tailles disponibles et prix agrégés sans N+1 par produit.
     const [stockByProduct, priceIndex] = await Promise.all([
       ProductVariant.aggregate([
         { $match: { product_id: { $in: productIds } } },
-        { $group: { _id: '$product_id', stock_total: { $sum: '$stock_quantite' } } },
+        { $group: { _id: '$product_id', stock_total: { $sum: '$stock_quantite' }, tailles: { $addToSet: '$taille' } } },
       ]),
       buildPriceIndex(productIds),
     ]);
 
     const stockMap = new Map(stockByProduct.map((s) => [s._id.toString(), s.stock_total]));
+    const taillesMap = new Map(stockByProduct.map((s) => [s._id.toString(), (s.tailles as string[]).sort()]));
 
     const data = products.map((p) => {
       const id = p._id.toString();
@@ -76,6 +77,7 @@ export async function GET(request: NextRequest) {
       return {
         ...p,
         stock_total: stockMap.get(id) ?? 0,
+        tailles: taillesMap.get(id) ?? [],
         prix_actuel: prixDefaut,
         prix_a_partir_de: prixDefaut == null ? resolveMinPrice(priceIndex, id) : null,
       };
