@@ -18,6 +18,7 @@ import {
   faHatCowboy,
   faGlasses,
   faTags,
+  faLayerGroup,
   type IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import { useUserRole } from "@/lib/useUserRole";
@@ -28,6 +29,7 @@ const CATEGORY_ICONS: Record<string, IconDefinition> = {
   chemise: faShirt,
   tricot: faShirt,
   culotte: faSocks,
+  ensemble: faLayerGroup,
   bracelet: faGem,
   montre: faClock,
   chaussure: faShoePrints,
@@ -42,6 +44,7 @@ const CATEGORIES = [
   "chemise",
   "tricot",
   "culotte",
+  "ensemble",
   "bracelet",
   "montre",
   "chaussure",

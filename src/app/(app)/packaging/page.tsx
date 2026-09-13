@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useUserRole } from "@/lib/useUserRole";
 import { useToast } from "@/components/common/ToastProvider";
 import { formatXAF } from "@/lib/currency";
 import { SkeletonStatCards, SkeletonTable } from "@/components/common/Skeleton";
+import { activeToggleClasses } from "@/lib/statusColors";
 
 interface PackagingType {
   _id: string;
   nom: string;
   prix_unitaire: number;
+  actif: boolean;
 }
 
 interface PackagingPurchase {
@@ -44,6 +47,7 @@ export default function PackagingPage() {
   const [purchases, setPurchases] = useState<PackagingPurchase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [typeForm, setTypeForm] = useState(EMPTY_TYPE_FORM);
+  const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
   const [isSavingType, setIsSavingType] = useState(false);
   const [purchaseForm, setPurchaseForm] = useState(EMPTY_PURCHASE_FORM);
   const [isSavingPurchase, setIsSavingPurchase] = useState(false);
@@ -73,6 +77,16 @@ export default function PackagingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
+  const handleEditType = (type: PackagingType) => {
+    setEditingTypeId(type._id);
+    setTypeForm({ nom: type.nom, prix_unitaire: String(type.prix_unitaire) });
+  };
+
+  const handleCancelTypeEdit = () => {
+    setEditingTypeId(null);
+    setTypeForm(EMPTY_TYPE_FORM);
+  };
+
   const handleSaveType = async (e: React.FormEvent) => {
     e.preventDefault();
     const nom = typeForm.nom.trim();
@@ -80,14 +94,14 @@ export default function PackagingPage() {
     if (!nom || !prix_unitaire || prix_unitaire <= 0) return;
     setIsSavingType(true);
     try {
-      const res = await fetch("/api/packaging", {
-        method: "POST",
+      const res = await fetch(editingTypeId ? `/api/packaging/${editingTypeId}` : "/api/packaging", {
+        method: editingTypeId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nom, prix_unitaire }),
       });
       if (!res.ok) throw new Error("Échec de l'enregistrement");
-      toast.success("Type de packaging enregistré");
-      setTypeForm(EMPTY_TYPE_FORM);
+      toast.success(editingTypeId ? "Type de packaging mis à jour" : "Type de packaging enregistré");
+      handleCancelTypeEdit();
       load();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
@@ -95,6 +109,20 @@ export default function PackagingPage() {
     } finally {
       setIsSavingType(false);
     }
+  };
+
+  const handleToggleTypeActif = async (type: PackagingType) => {
+    const res = await fetch(`/api/packaging/${type._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actif: !type.actif }),
+    });
+    if (!res.ok) {
+      toast.error("Échec de la mise à jour");
+      return;
+    }
+    toast.success(type.actif ? "Type archivé" : "Type désarchivé");
+    load();
   };
 
   const handlePickType = (packaging_id: string) => {
@@ -172,6 +200,13 @@ export default function PackagingPage() {
     .filter((p) => new Date(p.date_achat).getTime() >= thirtyDaysAgo)
     .reduce((sum, p) => sum + p.montant_total, 0);
 
+  // Quantité totale achetée par type (cumulatif — pas un stock qui se
+  // décrémente, juste "combien on en a commandé au total").
+  const quantiteParType = new Map<string, number>();
+  for (const p of purchases) {
+    quantiteParType.set(p.nom, (quantiteParType.get(p.nom) ?? 0) + p.quantite);
+  }
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 space-y-6">
@@ -209,20 +244,40 @@ export default function PackagingPage() {
               <thead>
                 <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
                   <th className="py-2 pr-4">Nom</th>
+                  <th className="py-2 pr-4">Quantité achetée (total)</th>
                   {canSeeFinancials && <th className="py-2 pr-4">Prix unitaire de référence</th>}
-                  {isAdmin && <th className="py-2 pr-4"></th>}
+                  <th className="py-2 pr-4">Statut</th>
+                  {(canWrite || isAdmin) && <th className="py-2 pr-4"></th>}
                 </tr>
               </thead>
               <tbody>
                 {types.map((t) => (
                   <tr key={t._id} className="border-b border-silver-soft/50">
                     <td className="py-2 pr-4 text-ink">{t.nom}</td>
+                    <td className="py-2 pr-4 text-ink-soft">{quantiteParType.get(t.nom) ?? 0}</td>
                     {canSeeFinancials && <td className="py-2 pr-4 text-ink-soft">{formatXAF(t.prix_unitaire)}</td>}
-                    {isAdmin && (
+                    <td className="py-2 pr-4">
+                      <button
+                        onClick={() => canWrite && handleToggleTypeActif(t)}
+                        disabled={!canWrite}
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${activeToggleClasses(t.actif)}`}>
+                        {t.actif ? "Actif" : "Archivé"}
+                      </button>
+                    </td>
+                    {(canWrite || isAdmin) && (
                       <td className="py-2 pr-4">
-                        <button onClick={() => handleDeleteType(t)} className="text-red-600 hover:underline text-xs">
-                          Supprimer
-                        </button>
+                        <div className="flex items-center gap-3 whitespace-nowrap">
+                          {canWrite && (
+                            <button onClick={() => handleEditType(t)} className="text-ink underline hover:no-underline text-xs">
+                              Modifier
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button onClick={() => handleDeleteType(t)} className="text-red-600 hover:underline text-xs">
+                              Supprimer
+                            </button>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -234,6 +289,7 @@ export default function PackagingPage() {
 
         {canWrite && (
           <form onSubmit={handleSaveType} className="flex flex-wrap gap-3 items-end pt-4 border-t border-silver-soft">
+            {editingTypeId && <p className="w-full text-sm font-medium text-ink">Modification du type</p>}
             <div>
               <label className="block text-sm font-medium text-ink-soft mb-2">Nom</label>
               <input
@@ -256,8 +312,13 @@ export default function PackagingPage() {
               type="submit"
               disabled={isSavingType}
               className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors disabled:opacity-50">
-              {isSavingType ? "Enregistrement..." : "Ajouter / mettre à jour"}
+              {isSavingType ? "Enregistrement..." : editingTypeId ? "Enregistrer" : "Ajouter"}
             </button>
+            {editingTypeId && (
+              <button type="button" onClick={handleCancelTypeEdit} className="px-6 py-2 border border-silver-soft text-ink-soft rounded-lg hover:bg-ivory-soft transition-colors">
+                Annuler
+              </button>
+            )}
           </form>
         )}
       </div>
@@ -273,7 +334,7 @@ export default function PackagingPage() {
                 onChange={(e) => handlePickType(e.target.value)}
                 className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
                 <option value="">Choisir un type existant...</option>
-                {types.map((t) => (
+                {types.filter((t) => t.actif).map((t) => (
                   <option key={t._id} value={t._id}>{t.nom}</option>
                 ))}
               </select>
@@ -353,7 +414,7 @@ export default function PackagingPage() {
               {purchases.map((p) => (
                 <div key={p._id} className="border border-silver-soft rounded-lg p-3">
                   <div className="flex justify-between items-start gap-2 mb-1">
-                    <p className="font-medium text-ink">{p.nom}</p>
+                    <Link href={`/packaging/${p._id}`} className="font-medium text-ink hover:underline">{p.nom}</Link>
                     <p className="text-xs text-ink-soft/70 whitespace-nowrap">
                       {new Date(p.date_achat).toLocaleDateString("fr-FR")}
                     </p>
@@ -366,11 +427,16 @@ export default function PackagingPage() {
                       {formatXAF(p.montant_total)} <span className="text-xs font-normal text-ink-soft/60">({formatXAF(p.prix_unitaire)}/u)</span>
                     </p>
                   )}
-                  {isAdmin && (
-                    <button onClick={() => handleDeletePurchase(p._id)} className="text-red-600 hover:underline text-xs mt-2">
-                      Supprimer
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3 mt-2">
+                    <Link href={`/packaging/${p._id}`} className="text-ink underline hover:no-underline text-xs">
+                      Détails
+                    </Link>
+                    {isAdmin && (
+                      <button onClick={() => handleDeletePurchase(p._id)} className="text-red-600 hover:underline text-xs">
+                        Supprimer
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -386,25 +452,32 @@ export default function PackagingPage() {
                     <th className="py-2 pr-4">Quantité</th>
                     {canSeeFinancials && <th className="py-2 pr-4">Prix unitaire</th>}
                     {canSeeFinancials && <th className="py-2 pr-4">Montant</th>}
-                    {isAdmin && <th className="py-2 pr-4"></th>}
+                    <th className="py-2 pr-4"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {purchases.map((p) => (
-                    <tr key={p._id} className="border-b border-silver-soft/50">
+                    <tr key={p._id} className="border-b border-silver-soft/50 hover:bg-ivory-soft/60">
                       <td className="py-2 pr-4 text-ink-soft">{new Date(p.date_achat).toLocaleDateString("fr-FR")}</td>
-                      <td className="py-2 pr-4 text-ink">{p.nom}</td>
+                      <td className="py-2 pr-4 text-ink">
+                        <Link href={`/packaging/${p._id}`} className="hover:underline">{p.nom}</Link>
+                      </td>
                       <td className="py-2 pr-4 text-ink-soft">{p.fournisseur || "—"}</td>
                       <td className="py-2 pr-4 text-ink-soft">{p.quantite}</td>
                       {canSeeFinancials && <td className="py-2 pr-4 text-ink-soft">{formatXAF(p.prix_unitaire)}</td>}
                       {canSeeFinancials && <td className="py-2 pr-4 font-semibold text-ink">{formatXAF(p.montant_total)}</td>}
-                      {isAdmin && (
-                        <td className="py-2 pr-4">
-                          <button onClick={() => handleDeletePurchase(p._id)} className="text-red-600 hover:underline text-xs">
-                            Supprimer
-                          </button>
-                        </td>
-                      )}
+                      <td className="py-2 pr-4">
+                        <div className="flex items-center gap-3 whitespace-nowrap">
+                          <Link href={`/packaging/${p._id}`} className="text-ink underline hover:no-underline text-xs">
+                            Détails
+                          </Link>
+                          {isAdmin && (
+                            <button onClick={() => handleDeletePurchase(p._id)} className="text-red-600 hover:underline text-xs">
+                              Supprimer
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

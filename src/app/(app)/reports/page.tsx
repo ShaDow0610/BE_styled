@@ -20,7 +20,7 @@ import { formatXAF } from "@/lib/currency";
 import { SkeletonPanel, SkeletonStatCards } from "@/components/common/Skeleton";
 
 const PRODUCT_CATEGORIES = [
-  "pantalon", "chemise", "tricot", "culotte", "bracelet",
+  "pantalon", "chemise", "tricot", "culotte", "ensemble", "bracelet",
   "montre", "chaussure", "bague", "chapeau", "lunette", "autre",
 ];
 const PRODUCT_STATUSES = [

@@ -6,6 +6,7 @@ interface PackagingOption {
   _id: string;
   nom: string;
   prix_unitaire: number;
+  actif?: boolean;
 }
 
 interface PackagingSelectProps {
@@ -93,7 +94,7 @@ export default function PackagingSelect({ onTotalChange }: PackagingSelectProps)
         onChange={(e) => setSelectedId(e.target.value)}
         className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
         <option value="">Choisir un type...</option>
-        {options.map((o) => (
+        {options.filter((o) => o.actif !== false || o._id === selectedId).map((o) => (
           <option key={o._id} value={o._id}>{o.nom} ({o.prix_unitaire})</option>
         ))}
       </select>

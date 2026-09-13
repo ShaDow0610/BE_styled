@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPublicProduct } from "@/lib/publicCatalog";
 import WhatsAppOrderButton from "./WhatsAppOrderButton";
+import ProductGallery from "./ProductGallery";
 
 type Params = Promise<{ id: string }>;
 
@@ -16,20 +17,7 @@ export default async function ProductDetailPage({ params }: { params: Params }) 
     <div className="container mx-auto px-4 py-12">
       <div className="grid md:grid-cols-2 gap-10">
         <div>
-          {product.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={product.image} alt={product.nom} className="w-full rounded-lg bg-ivory-soft object-cover aspect-square" />
-          ) : (
-            <div className="w-full rounded-lg bg-ivory-soft aspect-square" />
-          )}
-          {product.images.length > 1 && (
-            <div className="grid grid-cols-4 gap-2 mt-3">
-              {product.images.slice(1).map((url) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={url} src={url} alt={product.nom} className="w-full aspect-square object-cover rounded bg-ivory-soft" />
-              ))}
-            </div>
-          )}
+          <ProductGallery images={product.images} alt={product.nom} />
         </div>
 
         <div>

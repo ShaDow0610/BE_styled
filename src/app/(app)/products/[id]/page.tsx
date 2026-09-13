@@ -13,7 +13,7 @@ import { SkeletonBlock, SkeletonPanel } from "@/components/common/Skeleton";
 import { productStatutClasses } from "@/lib/statusColors";
 
 const CATEGORIES = [
-  "pantalon", "chemise", "tricot", "culotte", "bracelet",
+  "pantalon", "chemise", "tricot", "culotte", "ensemble", "bracelet",
   "montre", "chaussure", "bague", "chapeau", "lunette", "autre",
 ];
 const STATUTS = [
@@ -173,7 +173,6 @@ function ProductDetailPageInner() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="font-serif text-3xl text-ink">{product.nom}</h1>
-          <p className="text-ink-soft/70 text-sm">Réf: {product.reference}</p>
         </div>
         <Link
           href="/products"
@@ -858,32 +857,53 @@ function PrixTab({
         {history.length === 0 ? (
           <p className="text-ink-soft/70 text-sm">Aucun prix enregistré pour le moment.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Revient</th>
-                  <th className="py-2 pr-4">Marge</th>
-                  <th className="py-2 pr-4">Revente</th>
-                  <th className="py-2 pr-4">Raison</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((h) => (
-                  <tr key={h._id} className="border-b border-silver-soft/50">
-                    <td className="py-2 pr-4 text-ink-soft">
+          <>
+            {/* Mobile : une carte par entrée d'historique */}
+            <div className="sm:hidden space-y-3">
+              {history.map((h) => (
+                <div key={h._id} className="border border-silver-soft rounded-lg p-3">
+                  <div className="flex justify-between items-start gap-2 mb-1">
+                    <p className="font-semibold text-ink">{formatXAF(h.prix_revente_final)}</p>
+                    <p className="text-xs text-ink-soft/70 whitespace-nowrap">
                       {new Date(h.date_effet).toLocaleDateString("fr-FR")}
-                    </td>
-                    <td className="py-2 pr-4 text-ink">{formatXAF(h.prix_revient_total)}</td>
-                    <td className="py-2 pr-4 text-ink">{h.marge_pourcentage}%</td>
-                    <td className="py-2 pr-4 font-semibold text-ink">{formatXAF(h.prix_revente_final)}</td>
-                    <td className="py-2 pr-4 text-ink-soft/70">{h.raison_changement || "—"}</td>
+                    </p>
+                  </div>
+                  <p className="text-xs text-ink-soft">
+                    Revient {formatXAF(h.prix_revient_total)} · Marge {h.marge_pourcentage}%
+                  </p>
+                  {h.raison_changement && <p className="text-xs text-ink-soft/70 mt-1">{h.raison_changement}</p>}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop/tablette : tableau */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
+                    <th className="py-2 pr-4">Date</th>
+                    <th className="py-2 pr-4">Revient</th>
+                    <th className="py-2 pr-4">Marge</th>
+                    <th className="py-2 pr-4">Revente</th>
+                    <th className="py-2 pr-4">Raison</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {history.map((h) => (
+                    <tr key={h._id} className="border-b border-silver-soft/50">
+                      <td className="py-2 pr-4 text-ink-soft">
+                        {new Date(h.date_effet).toLocaleDateString("fr-FR")}
+                      </td>
+                      <td className="py-2 pr-4 text-ink">{formatXAF(h.prix_revient_total)}</td>
+                      <td className="py-2 pr-4 text-ink">{h.marge_pourcentage}%</td>
+                      <td className="py-2 pr-4 font-semibold text-ink">{formatXAF(h.prix_revente_final)}</td>
+                      <td className="py-2 pr-4 text-ink-soft/70">{h.raison_changement || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -899,7 +919,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const IMAGE_FORM_DEFAULTS = { url: "", type: IMAGE_TYPES[0], ordre_affichage: "0" };
+const IMAGE_FORM_DEFAULTS = { type: IMAGE_TYPES[0] };
 
 function ImagesTab({
   productId,
@@ -914,55 +934,56 @@ function ImagesTab({
 }) {
   const toast = useToast();
   const [form, setForm] = useState(IMAGE_FORM_DEFAULTS);
-  const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [isDeletingSelection, setIsDeletingSelection] = useState(false);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Sélection multiple de fichiers — chaque photo est téléversée puis
+  // rattachée au produit automatiquement, l'une après l'autre, au lieu de
+  // devoir répéter la manip une photo à la fois.
+  const handleFilesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
     setError("");
     setIsUploading(true);
-    try {
-      const body = new FormData();
-      body.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Échec du téléversement");
-      }
-      setForm((f) => ({ ...f, url: data.data.url }));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setIsUploading(false);
-      e.target.value = "";
-    }
-  };
+    setProgress({ done: 0, total: files.length });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/products/${productId}/images`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, ordre_affichage: Number(form.ordre_affichage) || 0 }),
-      });
-      if (!res.ok) throw new Error("Échec de l'ajout de l'image");
-      setForm(IMAGE_FORM_DEFAULTS);
-      toast.success("Image ajoutée");
-      onSaved();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Erreur inconnue";
+    let ordre = images.length;
+    let failures = 0;
+    for (const file of files) {
+      try {
+        const body = new FormData();
+        body.append("file", file);
+        const uploadRes = await fetch("/api/upload", { method: "POST", body });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok || !uploadData.success) throw new Error(uploadData.error || "Échec du téléversement");
+
+        const createRes = await fetch(`/api/products/${productId}/images`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: uploadData.data.url, type: form.type, ordre_affichage: ordre }),
+        });
+        if (!createRes.ok) throw new Error("Échec de l'ajout de l'image");
+        ordre += 1;
+      } catch {
+        failures += 1;
+      }
+      setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+    }
+
+    setIsUploading(false);
+    setProgress(null);
+    e.target.value = "";
+    if (failures > 0) {
+      const message = `${failures} photo(s) sur ${files.length} n'ont pas pu être ajoutées`;
       setError(message);
       toast.error(message);
-    } finally {
-      setIsSaving(false);
+    } else {
+      toast.success(files.length > 1 ? `${files.length} photos ajoutées` : "Photo ajoutée");
     }
+    onSaved();
   };
 
   const handleDelete = async (imageId: string) => {
@@ -975,48 +996,81 @@ function ImagesTab({
     onSaved();
   };
 
+  const toggleSelected = (imageId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(imageId)) next.delete(imageId);
+      else next.add(imageId);
+      return next;
+    });
+  };
+
+  const handleDeleteSelection = async () => {
+    if (!window.confirm(`Supprimer les ${selected.size} photos sélectionnées ? Cette action est irréversible.`)) return;
+    setIsDeletingSelection(true);
+    try {
+      await Promise.all(
+        Array.from(selected).map((imageId) =>
+          fetch(`/api/products/${productId}/images?imageId=${imageId}`, { method: "DELETE" })
+        )
+      );
+      toast.success("Photos supprimées");
+      setSelected(new Set());
+      onSaved();
+    } finally {
+      setIsDeletingSelection(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {canWrite && (
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 grid md:grid-cols-3 gap-4">
-        <Field label="Photo">
-          <input type="file" accept="image/*" onChange={handleFileChange}
-            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink file:mr-3 file:px-3 file:py-1 file:rounded file:border-0 file:bg-ink file:text-ivory file:text-sm" />
-          {isUploading && <p className="text-xs text-ink-soft/70 mt-1">Téléversement...</p>}
-          {form.url && !isUploading && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={form.url} alt="Aperçu" className="mt-2 h-16 w-16 object-cover rounded border border-silver-soft" />
-          )}
-        </Field>
-        <Field label="Type">
+      <div className="bg-white rounded-lg shadow p-6 grid md:grid-cols-3 gap-4">
+        <Field label="Type (appliqué à toutes les photos choisies)">
           <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
             className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
             {IMAGE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </Field>
-        <Field label="Ordre d'affichage">
-          <input type="number" min="0" value={form.ordre_affichage} onChange={(e) => setForm({ ...form, ordre_affichage: e.target.value })}
-            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink" />
-        </Field>
-        {error && <p className="md:col-span-3 text-sm text-red-600">{error}</p>}
-        <div className="md:col-span-3">
-          <button type="submit" disabled={isSaving || isUploading || !form.url}
-            className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors disabled:opacity-50">
-            {isSaving ? "Ajout..." : "Ajouter l'image"}
-          </button>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-ink-soft mb-2">Photos (plusieurs à la fois)</label>
+          <input type="file" accept="image/*" multiple disabled={isUploading} onChange={handleFilesChange}
+            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink file:mr-3 file:px-3 file:py-1 file:rounded file:border-0 file:bg-ink file:text-ivory file:text-sm disabled:opacity-50" />
+          {progress && (
+            <p className="text-xs text-ink-soft/70 mt-1">Téléversement... {progress.done}/{progress.total}</p>
+          )}
+          {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
         </div>
-      </form>
+      </div>
       )}
 
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="font-serif text-xl text-ink mb-4">Images</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="font-serif text-xl text-ink">Images</h2>
+          {canWrite && selected.size > 0 && (
+            <button
+              onClick={handleDeleteSelection}
+              disabled={isDeletingSelection}
+              className="text-sm text-red-600 hover:underline disabled:opacity-50">
+              {isDeletingSelection ? "Suppression..." : `Supprimer la sélection (${selected.size})`}
+            </button>
+          )}
+        </div>
         {images.length === 0 ? (
           <p className="text-ink-soft/70 text-sm">Aucune image pour le moment.</p>
         ) : (
           <div className="grid md:grid-cols-3 gap-4">
             {images.map((img) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <div key={img._id} className="border border-silver-soft rounded-lg overflow-hidden">
+              <div key={img._id} className="relative border border-silver-soft rounded-lg overflow-hidden">
+                {canWrite && (
+                  <input
+                    type="checkbox"
+                    checked={selected.has(img._id)}
+                    onChange={() => toggleSelected(img._id)}
+                    className="absolute top-2 left-2 w-4 h-4 z-10"
+                  />
+                )}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img.url} alt={img.type} className="w-full h-40 object-cover bg-ivory-soft" />
                 <div className="p-3 flex justify-between items-center text-sm">
                   <span className="text-ink-soft">{img.type}</span>

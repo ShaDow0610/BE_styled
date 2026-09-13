@@ -10,6 +10,7 @@ import {
   faHatCowboy,
   faGlasses,
   faTags,
+  faLayerGroup,
   type IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
@@ -22,6 +23,7 @@ const CATEGORIES: { key: string; icon: IconDefinition }[] = [
   { key: "chemise", icon: faShirt },
   { key: "tricot", icon: faShirt },
   { key: "culotte", icon: faSocks },
+  { key: "ensemble", icon: faLayerGroup },
   { key: "bracelet", icon: faGem },
   { key: "montre", icon: faClock },
   { key: "chaussure", icon: faShoePrints },

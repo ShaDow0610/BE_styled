@@ -5,6 +5,7 @@ export const PRODUCT_CATEGORIES = [
   'chemise',
   'tricot',
   'culotte',
+  'ensemble',
   'bracelet',
   'montre',
   'chaussure',

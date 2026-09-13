@@ -9,6 +9,7 @@ const CATEGORY_CODES: Record<string, string> = {
   chemise: 'CHEM',
   tricot: 'TRIC',
   culotte: 'CULO',
+  ensemble: 'ENSB',
   bracelet: 'BRAC',
   montre: 'MONT',
   chaussure: 'CHAU',
