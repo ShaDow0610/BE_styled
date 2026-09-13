@@ -52,7 +52,13 @@ export async function GET(request: NextRequest) {
     const productIds = allProducts.map((p) => p._id);
     const productIdSet = new Set(productIds.map((id) => id.toString()));
 
-    const [margeByProduct, recentSales, allClientOrders, paymentsByOrder, encaissementsAgg, priceIndex] =
+    // Période précédente, de même durée, pour calculer une variation — la
+    // comparaison à la période précédente est plus parlante qu'un chiffre isolé.
+    const periodMs = dateFin.getTime() - dateDebut.getTime();
+    const datePrecFin = new Date(dateDebut.getTime() - 1);
+    const datePrecDebut = new Date(datePrecFin.getTime() - periodMs);
+
+    const [margeByProduct, recentSales, salesPrecedentes, allClientOrders, paymentsByOrder, encaissementsAgg, priceIndex] =
       await Promise.all([
         ProductPricing.aggregate([
           { $sort: { date_effet: -1 } },
@@ -64,6 +70,13 @@ export async function GET(request: NextRequest) {
           date_maj: { $gte: dateDebut, $lte: dateFin },
         })
           .populate({ path: 'product_id', select: 'nom' })
+          .lean(),
+        OrderTracking.find({
+          type: 'commande_client',
+          statut: 'livre_client',
+          date_maj: { $gte: datePrecDebut, $lte: datePrecFin },
+        })
+          .select('quantite montant_total product_id')
           .lean(),
         OrderTracking.find({ type: 'commande_client' })
           .select('quantite montant_total product_id')
@@ -161,14 +174,73 @@ export async function GET(request: NextRequest) {
       bucket.ca += montantVente;
       ventesParProduit.set(product._id.toString(), bucket);
     }
+    // Ventes de la période précédente — sert uniquement à la variation % et
+    // à la tendance par produit (quantité), pas de détail par bucket nécessaire.
+    let chiffreAffairesPrecedent = 0;
+    const quantiteParProduitPrecedent = new Map<string, number>();
+    for (const sale of salesPrecedentes as any[]) {
+      const productId = sale.product_id?.toString();
+      if (!productId || !productIdSet.has(productId)) continue;
+      const montantVente =
+        sale.montant_total ??
+        (() => {
+          const prix = resolvePrice(priceIndex, productId);
+          return prix != null ? prix * sale.quantite : null;
+        })();
+      if (montantVente != null) chiffreAffairesPrecedent += montantVente;
+      quantiteParProduitPrecedent.set(productId, (quantiteParProduitPrecedent.get(productId) ?? 0) + sale.quantite);
+    }
+    // Variation vs période précédente — null si la période précédente est à
+    // zéro (une variation % n'a pas de sens en partant de rien).
+    const variationCA =
+      chiffreAffairesPrecedent > 0
+        ? Math.round(((chiffreAffaires - chiffreAffairesPrecedent) / chiffreAffairesPrecedent) * 10000) / 100
+        : null;
+
     // Classé par chiffre d'affaires généré, pas par quantité (voir dashboard/stats).
-    const meilleuresVentes = Array.from(ventesParProduit.values())
-      .sort((a, b) => b.ca - a.ca)
+    // "tendance" compare la quantité vendue à la période précédente pour le même produit.
+    const meilleuresVentes = Array.from(ventesParProduit.entries())
+      .sort((a, b) => b[1].ca - a[1].ca)
       .slice(0, 5)
-      .map((v) => ({ ...v, ca: Math.round(v.ca * 100) / 100 }));
+      .map(([productId, v]) => {
+        const qtePrecedente = quantiteParProduitPrecedent.get(productId) ?? 0;
+        const tendance: 'hausse' | 'baisse' | 'stable' =
+          v.quantite > qtePrecedente ? 'hausse' : v.quantite < qtePrecedente ? 'baisse' : 'stable';
+        return { ...v, ca: Math.round(v.ca * 100) / 100, tendance };
+      });
     const parPeriode = Array.from(parBucket.entries())
       .map(([date, ca]) => ({ date, ca: Math.round(ca * 100) / 100 }))
       .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Fourchette de prévision pour une période future de même durée : plutôt
+    // qu'un chiffre unique (faussement précis), on donne "si la prochaine
+    // période ressemble à ta pire/meilleure période observée ici".
+    // Nécessite au moins 2 buckets pour que la fourchette veuille dire quelque chose.
+    let previsionBasse: number | null = null;
+    let previsionHaute: number | null = null;
+    if (parPeriode.length >= 2) {
+      const valeurs = parPeriode.map((b) => b.ca);
+      previsionBasse = Math.round(Math.min(...valeurs) * parPeriode.length * 100) / 100;
+      previsionHaute = Math.round(Math.max(...valeurs) * parPeriode.length * 100) / 100;
+    }
+
+    // Risque de rupture : heuristique simple basée sur le nombre de
+    // couleurs/tailles encore cochées (pas de quantité chiffrée à observer,
+    // voir la décision produit) — 1 restante = Élevé, 2 = Moyen, 3+ = Faible.
+    // Les produits sans aucune couleur/taille sont déjà comptés en critique
+    // dans les points d'attention, on ne les recompte pas ici.
+    let risqueEleve = 0;
+    let risqueMoyen = 0;
+    let risqueFaible = 0;
+    for (const p of allProducts) {
+      if (p.statut !== 'disponible') continue;
+      const comptes = [p.couleurs_disponibles?.length ?? 0, p.tailles_disponibles?.length ?? 0].filter((n) => n > 0);
+      if (comptes.length === 0) continue;
+      const restant = Math.min(...comptes);
+      if (restant === 1) risqueEleve += 1;
+      else if (restant === 2) risqueMoyen += 1;
+      else risqueFaible += 1;
+    }
 
     // Points d'attention : état présent du catalogue, non daté, restreint aux produits filtrés.
     const pointsAttention: { type: string; message: string; lien: string; severite: 'critique' | 'attention' }[] = [];
@@ -240,13 +312,16 @@ export async function GET(request: NextRequest) {
         ventes: {
           nombreVentes,
           chiffreAffaires: showFinancials ? Math.round(chiffreAffaires * 100) / 100 : null,
+          variationCA: showFinancials ? variationCA : null,
           meilleuresVentes: showFinancials
             ? meilleuresVentes
-            : meilleuresVentes.map((v) => ({ nom: v.nom, quantite: v.quantite })),
+            : meilleuresVentes.map((v) => ({ nom: v.nom, quantite: v.quantite, tendance: v.tendance })),
           parPeriode: showFinancials ? parPeriode : [],
           encaissements: showFinancials ? Math.round(encaissements * 100) / 100 : null,
           resteAPayer: showFinancials ? Math.round(resteAPayer * 100) / 100 : null,
+          prevision: showFinancials ? { basse: previsionBasse, haute: previsionHaute } : { basse: null, haute: null },
         },
+        risqueRupture: { eleve: risqueEleve, moyen: risqueMoyen, faible: risqueFaible },
         pointsAttention,
       },
     });

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useToast } from "@/components/common/ToastProvider";
 import { useUserRole } from "@/lib/useUserRole";
 import { SkeletonTable } from "@/components/common/Skeleton";
+import { activeToggleClasses } from "@/lib/statusColors";
 
 interface Brand {
   _id: string;
@@ -13,6 +14,7 @@ interface Brand {
   categorie_accessoire: string;
   contact: string;
   conditions_commerciales: string;
+  actif: boolean;
 }
 
 const EMPTY_FORM = { nom: "", categorie_accessoire: "", contact: "", conditions_commerciales: "" };
@@ -94,6 +96,20 @@ export default function BrandsPage() {
       return;
     }
     toast.success("Marque supprimée");
+    load();
+  };
+
+  const handleToggleActif = async (brand: Brand) => {
+    const res = await fetch(`/api/brands/${brand._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actif: !brand.actif }),
+    });
+    if (!res.ok) {
+      toast.error("Échec de la mise à jour");
+      return;
+    }
+    toast.success(brand.actif ? "Marque désactivée" : "Marque réactivée");
     load();
   };
 
@@ -184,6 +200,7 @@ export default function BrandsPage() {
                 <th className="py-2 pr-4">Nom</th>
                 <th className="py-2 pr-4">Catégorie</th>
                 <th className="py-2 pr-4">Contact</th>
+                <th className="py-2 pr-4">Statut</th>
                 {(canWrite || isAdmin) && <th className="py-2 pr-4"></th>}
               </tr>
             </thead>
@@ -193,6 +210,14 @@ export default function BrandsPage() {
                   <td className="py-2 pr-4 text-ink font-medium">{b.nom}</td>
                   <td className="py-2 pr-4 text-ink-soft">{b.categorie_accessoire || "—"}</td>
                   <td className="py-2 pr-4 text-ink-soft/70">{b.contact || "—"}</td>
+                  <td className="py-2 pr-4">
+                    <button
+                      onClick={() => canWrite && handleToggleActif(b)}
+                      disabled={!canWrite}
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${activeToggleClasses(b.actif)}`}>
+                      {b.actif ? "Actif" : "Inactif"}
+                    </button>
+                  </td>
                   {(canWrite || isAdmin) && (
                     <td className="py-2 pr-4">
                       <div className="flex items-center gap-3 whitespace-nowrap">

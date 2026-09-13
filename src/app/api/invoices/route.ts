@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     await dbConnect();
     const invoices = await Invoice.find()
-      .select('numero_facture client_nom montant_total date_facture date_creation')
+      .select('numero_facture client_nom montant_total date_facture date_creation statut')
       .sort({ date_creation: -1 })
       .lean();
 

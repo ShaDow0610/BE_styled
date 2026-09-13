@@ -68,6 +68,7 @@ interface ImageItem {
 interface RefOption {
   _id: string;
   nom: string;
+  actif?: boolean;
 }
 
 type Tab = "infos" | "prix" | "images";
@@ -469,9 +470,11 @@ function InfosTab({
           onChange={(e) => setForm({ ...form, marque_partenaire_id: e.target.value })}
           className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
           <option value="">Aucune</option>
-          {brands.map((b) => (
-            <option key={b._id} value={b._id}>{b.nom}</option>
-          ))}
+          {brands
+            .filter((b) => b.actif !== false || b._id === form.marque_partenaire_id)
+            .map((b) => (
+              <option key={b._id} value={b._id}>{b.nom}{b.actif === false ? " (inactive)" : ""}</option>
+            ))}
         </select>
       </div>
       <div>
@@ -481,9 +484,11 @@ function InfosTab({
           onChange={(e) => setForm({ ...form, fournisseur_id: e.target.value })}
           className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
           <option value="">Aucun</option>
-          {suppliers.map((s) => (
-            <option key={s._id} value={s._id}>{s.nom}</option>
-          ))}
+          {suppliers
+            .filter((s) => s.actif !== false || s._id === form.fournisseur_id)
+            .map((s) => (
+              <option key={s._id} value={s._id}>{s.nom}{s.actif === false ? " (inactif)" : ""}</option>
+            ))}
         </select>
       </div>
       <div>

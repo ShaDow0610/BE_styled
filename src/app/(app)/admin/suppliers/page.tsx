@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useToast } from "@/components/common/ToastProvider";
 import { useUserRole } from "@/lib/useUserRole";
 import { SkeletonTable } from "@/components/common/Skeleton";
+import { activeToggleClasses } from "@/lib/statusColors";
 
 interface Supplier {
   _id: string;
@@ -14,6 +15,7 @@ interface Supplier {
   delai_moyen_jours: number;
   contact: string;
   notes: string;
+  actif: boolean;
 }
 
 const EMPTY_FORM = { nom: "", type: "usine_chine" as Supplier["type"], delai_moyen_jours: "0", contact: "", notes: "" };
@@ -97,6 +99,20 @@ export default function SuppliersPage() {
       return;
     }
     toast.success("Fournisseur supprimé");
+    load();
+  };
+
+  const handleToggleActif = async (supplier: Supplier) => {
+    const res = await fetch(`/api/suppliers/${supplier._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actif: !supplier.actif }),
+    });
+    if (!res.ok) {
+      toast.error("Échec de la mise à jour");
+      return;
+    }
+    toast.success(supplier.actif ? "Fournisseur désactivé" : "Fournisseur réactivé");
     load();
   };
 
@@ -193,6 +209,7 @@ export default function SuppliersPage() {
                 <th className="py-2 pr-4">Type</th>
                 <th className="py-2 pr-4">Délai moyen</th>
                 <th className="py-2 pr-4">Contact</th>
+                <th className="py-2 pr-4">Statut</th>
                 {(canWrite || isAdmin) && <th className="py-2 pr-4"></th>}
               </tr>
             </thead>
@@ -203,6 +220,14 @@ export default function SuppliersPage() {
                   <td className="py-2 pr-4 text-ink-soft">{s.type === "usine_chine" ? "Usine Chine" : "Couturier local"}</td>
                   <td className="py-2 pr-4 text-ink-soft">{s.delai_moyen_jours} j</td>
                   <td className="py-2 pr-4 text-ink-soft/70">{s.contact || "—"}</td>
+                  <td className="py-2 pr-4">
+                    <button
+                      onClick={() => canWrite && handleToggleActif(s)}
+                      disabled={!canWrite}
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${activeToggleClasses(s.actif)}`}>
+                      {s.actif ? "Actif" : "Inactif"}
+                    </button>
+                  </td>
                   {(canWrite || isAdmin) && (
                     <td className="py-2 pr-4">
                       <div className="flex items-center gap-3 whitespace-nowrap">

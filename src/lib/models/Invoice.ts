@@ -20,6 +20,7 @@ export interface IInvoice extends Document {
   order_tracking_ids: mongoose.Schema.Types.ObjectId[];
   montant_total: number;
   date_creation: Date;
+  statut: 'emise' | 'annulee';
 }
 
 const InvoiceLineSchema = new Schema<IInvoiceLine>(
@@ -45,6 +46,7 @@ const InvoiceSchema = new Schema<IInvoice>({
   order_tracking_ids: [{ type: Schema.Types.ObjectId, ref: 'OrderTracking' }],
   montant_total: { type: Number, required: true },
   date_creation: { type: Date, default: Date.now },
+  statut: { type: String, enum: ['emise', 'annulee'], default: 'emise' },
 });
 
 InvoiceSchema.index({ date_creation: -1 });

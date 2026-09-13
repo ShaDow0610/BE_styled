@@ -89,6 +89,8 @@ export default function OrdersPage() {
   const [error, setError] = useState("");
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"tous" | "commande_client" | "reappro_fournisseur">("tous");
+  const [productFilter, setProductFilter] = useState("");
   const [factureMode, setFactureMode] = useState(false);
   const [selectedForInvoice, setSelectedForInvoice] = useState<Set<string>>(new Set());
   const draggedIdRef = useRef<string | null>(null);
@@ -226,7 +228,7 @@ export default function OrdersPage() {
         )}
       </div>
 
-      <div className="mb-6">
+      <div className="flex flex-wrap gap-3 mb-6">
         <input
           type="text"
           placeholder="Rechercher par produit..."
@@ -234,6 +236,31 @@ export default function OrdersPage() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full max-w-md px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink bg-white"
         />
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+          className="px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink bg-white">
+          <option value="tous">Tous types</option>
+          <option value="commande_client">Ventes</option>
+          <option value="reappro_fournisseur">Réappros</option>
+        </select>
+        <select
+          value={productFilter}
+          onChange={(e) => setProductFilter(e.target.value)}
+          className="px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink bg-white">
+          <option value="">Tous produits</option>
+          {products.map((p) => (
+            <option key={p._id} value={p._id}>{p.nom}</option>
+          ))}
+        </select>
+        {(typeFilter !== "tous" || productFilter || searchTerm) && (
+          <button
+            type="button"
+            onClick={() => { setTypeFilter("tous"); setProductFilter(""); setSearchTerm(""); }}
+            className="text-sm text-ink-soft underline hover:text-ink">
+            Réinitialiser
+          </button>
+        )}
       </div>
 
       {showReapproForm && (
@@ -321,6 +348,8 @@ export default function OrdersPage() {
               <div className="space-y-2">
                 {orders
                   .filter((o) => o.statut === col.key)
+                  .filter((o) => typeFilter === "tous" || o.type === typeFilter)
+                  .filter((o) => !productFilter || o.product_id?._id === productFilter)
                   .filter((o) => {
                     if (!searchTerm) return true;
                     const term = searchTerm.toLowerCase();

@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatXAF } from "@/lib/currency";
-import { SkeletonCards } from "@/components/common/Skeleton";
+import { SkeletonTable } from "@/components/common/Skeleton";
+import { useUserRole } from "@/lib/useUserRole";
+import { useToast } from "@/components/common/ToastProvider";
+import { activeToggleClasses } from "@/lib/statusColors";
 
 interface Look {
   _id: string;
@@ -12,19 +15,23 @@ interface Look {
   prix_pack: number;
   photo_couverture?: string;
   item_count: number;
+  statut: "actif" | "archive";
 }
 
 const EMPTY_FORM = { nom: "", prix_pack: "", photo_couverture: "" };
 
 export default function LooksPage() {
   const router = useRouter();
+  const toast = useToast();
+  const { canWrite, isAdmin } = useUserRole();
   const [looks, setLooks] = useState<Look[]>([]);
-  const [canWrite, setCanWrite] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -51,16 +58,12 @@ export default function LooksPage() {
 
   useEffect(() => {
     const session = localStorage.getItem("user");
-    const userData = localStorage.getItem("user");
     if (!session) {
       router.push("/login");
       return;
     }
-    if (userData) {
-      const role = JSON.parse(userData).role;
-      setCanWrite(role === "admin" || role === "gestion_stock");
-    }
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   const load = async () => {
@@ -89,15 +92,79 @@ export default function LooksPage() {
     router.push(`/looks/${data.data._id}`);
   };
 
+  const handleToggleArchive = async (look: Look) => {
+    const nextStatut = look.statut === "archive" ? "actif" : "archive";
+    setPendingId(look._id);
+    try {
+      const res = await fetch(`/api/looks/${look._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statut: nextStatut }),
+      });
+      if (!res.ok) throw new Error("Échec de la mise à jour");
+      toast.success(nextStatut === "archive" ? "Look archivé" : "Look désarchivé");
+      load();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      toast.error(message);
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  const handleDelete = async (look: Look) => {
+    if (!window.confirm(`Supprimer définitivement "${look.nom}" ? Cette action est irréversible.`)) return;
+    setPendingId(look._id);
+    try {
+      const res = await fetch(`/api/looks/${look._id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Échec de la suppression");
+      toast.success("Look supprimé");
+      load();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      toast.error(message);
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  const visibleLooks = looks.filter((l) => showArchived || l.statut !== "archive");
+
+  const RowActions = ({ look }: { look: Look }) => (
+    <div className="flex items-center gap-3 flex-wrap">
+      <Link href={`/looks/${look._id}`} className="text-ink underline hover:no-underline">
+        Modifier
+      </Link>
+      {canWrite && (
+        <button
+          type="button"
+          disabled={pendingId === look._id}
+          onClick={() => handleToggleArchive(look)}
+          className="text-ink-soft underline hover:no-underline disabled:opacity-50">
+          {look.statut === "archive" ? "Désarchiver" : "Archiver"}
+        </button>
+      )}
+      {isAdmin && (
+        <button
+          type="button"
+          disabled={pendingId === look._id}
+          onClick={() => handleDelete(look)}
+          className="text-red-600 underline hover:no-underline disabled:opacity-50">
+          Supprimer
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
         <h1 className="font-serif text-3xl text-ink">Looks</h1>
         {canWrite && (
           <button
             onClick={() => setShowForm((v) => !v)}
             className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
-            Nouveau look
+            {showForm ? "Annuler" : "Nouveau look"}
           </button>
         )}
       </div>
@@ -134,33 +201,93 @@ export default function LooksPage() {
         </form>
       )}
 
+      <label className="flex items-center gap-2 text-sm text-ink-soft mb-4">
+        <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+        Afficher les looks archivés
+      </label>
+
       {isLoading ? (
-        <SkeletonCards count={6} />
-      ) : looks.length === 0 ? (
+        <SkeletonTable rows={5} cols={4} />
+      ) : visibleLooks.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <p className="text-ink-soft/70">Aucun look pour le moment.</p>
         </div>
       ) : (
-        <div className="grid md:grid-cols-3 gap-6">
-          {looks.map((look) => (
-            <Link
-              key={look._id}
-              href={`/looks/${look._id}`}
-              className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden">
-              {look.photo_couverture ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={look.photo_couverture} alt={look.nom} className="w-full h-40 object-cover bg-ivory-soft" />
-              ) : (
-                <div className="w-full h-40 bg-ivory-soft" />
-              )}
-              <div className="p-4">
-                <h3 className="text-lg font-semibold text-ink">{look.nom}</h3>
-                <p className="text-ink-soft/70 text-sm mt-1">{look.item_count} article(s)</p>
-                <p className="text-xl font-bold text-ink mt-2">{formatXAF(look.prix_pack)}</p>
+        <>
+          {/* Mobile : une carte par look */}
+          <div className="sm:hidden space-y-3">
+            {visibleLooks.map((look) => (
+              <div key={look._id} className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="flex">
+                  {look.photo_couverture ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={look.photo_couverture} alt={look.nom} className="w-20 h-20 object-cover bg-ivory-soft shrink-0" />
+                  ) : (
+                    <div className="w-20 h-20 bg-ivory-soft shrink-0" />
+                  )}
+                  <div className="p-3 min-w-0 flex-1">
+                    <div className="flex justify-between items-start gap-2">
+                      <Link href={`/looks/${look._id}`} className="font-medium text-ink hover:underline truncate">
+                        {look.nom}
+                      </Link>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${activeToggleClasses(look.statut === "actif")}`}>
+                        {look.statut === "actif" ? "Actif" : "Archivé"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-ink-soft/70">{look.item_count} article(s) · {formatXAF(look.prix_pack)}</p>
+                  </div>
+                </div>
+                <div className="px-3 pb-3">
+                  <RowActions look={look} />
+                </div>
               </div>
-            </Link>
-          ))}
-        </div>
+            ))}
+          </div>
+
+          {/* Desktop/tablette : tableau */}
+          <div className="hidden sm:block bg-white rounded-lg shadow overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
+                  <th className="py-3 px-4">Look</th>
+                  <th className="py-3 px-4">Articles</th>
+                  <th className="py-3 px-4">Prix pack</th>
+                  <th className="py-3 px-4">Statut</th>
+                  <th className="py-3 px-4"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleLooks.map((look) => (
+                  <tr key={look._id} className="border-b border-silver-soft/50 hover:bg-ivory-soft/60">
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-3">
+                        {look.photo_couverture ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={look.photo_couverture} alt={look.nom} className="w-10 h-10 object-cover rounded bg-ivory-soft shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded bg-ivory-soft shrink-0" />
+                        )}
+                        <Link href={`/looks/${look._id}`} className="font-medium text-ink hover:underline">
+                          {look.nom}
+                        </Link>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-ink-soft">{look.item_count}</td>
+                    <td className="py-3 px-4 font-semibold text-ink">{formatXAF(look.prix_pack)}</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${activeToggleClasses(look.statut === "actif")}`}>
+                        {look.statut === "actif" ? "Actif" : "Archivé"}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <RowActions look={look} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

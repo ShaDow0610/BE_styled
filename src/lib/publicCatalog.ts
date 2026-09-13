@@ -141,7 +141,7 @@ export async function getPublicLook(id: string): Promise<PublicLookDetail | null
 
   await dbConnect();
 
-  const look = await Look.findById(id).lean();
+  const look = await Look.findOne({ _id: id, statut: 'actif' }).lean();
   if (!look) return null;
 
   const lookItems = await LookItem.find({ look_id: id })
@@ -174,7 +174,7 @@ export async function getPublicLook(id: string): Promise<PublicLookDetail | null
 export async function getPublicLooks(limit = 100): Promise<PublicLook[]> {
   await dbConnect();
 
-  const looks = await Look.find().sort({ _id: -1 }).limit(limit).lean();
+  const looks = await Look.find({ statut: 'actif' }).sort({ _id: -1 }).limit(limit).lean();
   const lookIds = looks.map((l) => l._id);
 
   const itemCounts = await LookItem.aggregate([

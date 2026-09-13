@@ -13,6 +13,8 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowUp, faArrowDown, faMinus, faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
 import { useUserRole } from "@/lib/useUserRole";
 import { formatXAF } from "@/lib/currency";
 import { SkeletonPanel, SkeletonStatCards } from "@/components/common/Skeleton";
@@ -51,11 +53,14 @@ interface ReportData {
   ventes: {
     nombreVentes: number;
     chiffreAffaires: number;
-    meilleuresVentes: { nom: string; quantite: number; ca?: number }[];
+    variationCA: number | null;
+    meilleuresVentes: { nom: string; quantite: number; ca?: number; tendance: "hausse" | "baisse" | "stable" }[];
     parPeriode: { date: string; ca: number }[];
     encaissements: number;
     resteAPayer: number;
+    prevision: { basse: number | null; haute: number | null };
   };
+  risqueRupture: { eleve: number; moyen: number; faible: number };
   pointsAttention: { type: string; message: string; severite: string }[];
 }
 
@@ -76,12 +81,16 @@ const GROUPE_LABELS: Record<string, string> = {
   produit: "Produit",
 };
 
+const TENDANCE_ICON = { hausse: faArrowUp, baisse: faArrowDown, stable: faMinus };
+const TENDANCE_COLOR = { hausse: "text-emerald-600", baisse: "text-red-600", stable: "text-ink-soft/50" };
+
 export default function ReportsPage() {
   const router = useRouter();
   const { canSeeFinancials } = useUserRole();
   const [stats, setStats] = useState<ReportData | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     const session = localStorage.getItem("user");
@@ -134,23 +143,32 @@ export default function ReportsPage() {
     return value;
   };
 
-  const activeFiltersSummary = [
+  const activeChips: { key: keyof typeof filters; label: string }[] = [
     filters.date_debut || filters.date_fin
-      ? `Période : ${filters.date_debut || "…"} – ${filters.date_fin || "aujourd'hui"}`
+      ? { key: "date_debut", label: `Période : ${filters.date_debut || "…"} → ${filters.date_fin || "aujourd'hui"}` }
       : null,
-    filters.categorie ? `Catégorie : ${filters.categorie}` : null,
-    filters.fournisseur_id ? `Fournisseur : ${filterLabel("fournisseur_id", filters.fournisseur_id)}` : null,
-    filters.origine ? `Origine : ${filters.origine}` : null,
-    filters.statut ? `Statut : ${filters.statut}` : null,
-    `Groupé par : ${GROUPE_LABELS[filters.groupe]}`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+    filters.categorie ? { key: "categorie", label: `Catégorie : ${filters.categorie}` } : null,
+    filters.fournisseur_id ? { key: "fournisseur_id", label: `Fournisseur : ${filterLabel("fournisseur_id", filters.fournisseur_id)}` } : null,
+    filters.origine ? { key: "origine", label: `Origine : ${filters.origine}` } : null,
+    filters.statut ? { key: "statut", label: `Statut : ${filters.statut}` } : null,
+  ].filter((c): c is { key: keyof typeof filters; label: string } => c !== null);
+
+  const clearChip = (key: keyof typeof filters) => {
+    if (key === "date_debut") {
+      setFilters({ ...filters, date_debut: "", date_fin: "" });
+    } else {
+      setFilters({ ...filters, [key]: "" });
+    }
+  };
+
+  const printSummary = [...activeChips.map((c) => c.label), `Groupé par : ${GROUPE_LABELS[filters.groupe]}`].join(" · ");
+
+  const risqueTotal = stats.risqueRupture.eleve + stats.risqueRupture.moyen + stats.risqueRupture.faible;
 
   return (
     <div className="container mx-auto px-4 py-8 print:py-0">
       <div className="flex justify-between items-center mb-8 print:hidden">
-        <h1 className="font-serif text-3xl text-ink">Rapports</h1>
+        <h1 className="font-serif text-3xl text-ink">Statistiques</h1>
         <button
           onClick={() => window.print()}
           className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
@@ -159,106 +177,129 @@ export default function ReportsPage() {
       </div>
 
       <h1 className="hidden print:block font-serif text-2xl text-ink mb-2">
-        Be Styled — Rapport du {new Date().toLocaleDateString("fr-FR")}
+        Be Styled — Statistiques du {new Date().toLocaleDateString("fr-FR")}
       </h1>
-      <p className="hidden print:block text-sm text-ink-soft mb-6">{activeFiltersSummary}</p>
+      <p className="hidden print:block text-sm text-ink-soft mb-6">{printSummary}</p>
 
-      <div className="bg-white rounded-lg shadow p-6 mb-6 print:hidden">
-        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Date de début</label>
-            <input
-              type="date"
-              value={filters.date_debut}
-              onChange={(e) => setFilters({ ...filters, date_debut: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-            />
+      <div className="mb-6 print:hidden">
+        <button
+          type="button"
+          onClick={() => setShowFilters((v) => !v)}
+          className="flex items-center gap-2 text-sm text-ink-soft hover:text-ink mb-3">
+          <FontAwesomeIcon icon={showFilters ? faChevronUp : faChevronDown} className="w-3 h-3" />
+          Filtres {activeChips.length > 0 && `(${activeChips.length})`}
+        </button>
+
+        {activeChips.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {activeChips.map((chip) => (
+              <button
+                key={chip.key}
+                onClick={() => clearChip(chip.key)}
+                className="flex items-center gap-1.5 px-3 py-1 bg-ivory-soft border border-silver-soft rounded-full text-xs text-ink-soft hover:border-ink hover:text-ink">
+                {chip.label} <span className="text-ink-soft/60">✕</span>
+              </button>
+            ))}
+            <button
+              onClick={() => setFilters(EMPTY_FILTERS)}
+              className="text-xs text-ink-soft underline hover:text-ink px-1">
+              Réinitialiser tout
+            </button>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Date de fin</label>
-            <input
-              type="date"
-              value={filters.date_fin}
-              onChange={(e) => setFilters({ ...filters, date_fin: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-            />
+        )}
+
+        {showFilters && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-ink-soft mb-2">Date de début</label>
+                <input
+                  type="date"
+                  value={filters.date_debut}
+                  onChange={(e) => setFilters({ ...filters, date_debut: e.target.value })}
+                  className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink-soft mb-2">Date de fin</label>
+                <input
+                  type="date"
+                  value={filters.date_fin}
+                  onChange={(e) => setFilters({ ...filters, date_fin: e.target.value })}
+                  className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink-soft mb-2">Catégorie</label>
+                <select
+                  value={filters.categorie}
+                  onChange={(e) => setFilters({ ...filters, categorie: e.target.value })}
+                  className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
+                  <option value="">Toutes</option>
+                  {PRODUCT_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink-soft mb-2">Fournisseur</label>
+                <select
+                  value={filters.fournisseur_id}
+                  onChange={(e) => setFilters({ ...filters, fournisseur_id: e.target.value })}
+                  className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
+                  <option value="">Tous</option>
+                  {suppliers.map((s) => (
+                    <option key={s._id} value={s._id}>{s.nom}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink-soft mb-2">Origine</label>
+                <select
+                  value={filters.origine}
+                  onChange={(e) => setFilters({ ...filters, origine: e.target.value })}
+                  className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
+                  <option value="">Toutes</option>
+                  <option value="import_chine">Import Chine</option>
+                  <option value="local">Local</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink-soft mb-2">Statut</label>
+                <select
+                  value={filters.statut}
+                  onChange={(e) => setFilters({ ...filters, statut: e.target.value })}
+                  className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
+                  <option value="">Tous</option>
+                  {PRODUCT_STATUSES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink-soft mb-2">Période du graphique</label>
+                <select
+                  value={filters.periode}
+                  onChange={(e) => setFilters({ ...filters, periode: e.target.value as typeof filters.periode })}
+                  className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
+                  <option value="jour">Par jour</option>
+                  <option value="semaine">Par semaine</option>
+                  <option value="mois">Par mois</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-ink-soft mb-2">Grouper la répartition par</label>
+                <select
+                  value={filters.groupe}
+                  onChange={(e) => setFilters({ ...filters, groupe: e.target.value as typeof filters.groupe })}
+                  className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
+                  <option value="categorie">Catégorie</option>
+                  <option value="fournisseur">Fournisseur</option>
+                  <option value="produit">Produit</option>
+                </select>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Catégorie</label>
-            <select
-              value={filters.categorie}
-              onChange={(e) => setFilters({ ...filters, categorie: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
-              <option value="">Toutes</option>
-              {PRODUCT_CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Fournisseur</label>
-            <select
-              value={filters.fournisseur_id}
-              onChange={(e) => setFilters({ ...filters, fournisseur_id: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
-              <option value="">Tous</option>
-              {suppliers.map((s) => (
-                <option key={s._id} value={s._id}>{s.nom}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Origine</label>
-            <select
-              value={filters.origine}
-              onChange={(e) => setFilters({ ...filters, origine: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
-              <option value="">Toutes</option>
-              <option value="import_chine">Import Chine</option>
-              <option value="local">Local</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Statut</label>
-            <select
-              value={filters.statut}
-              onChange={(e) => setFilters({ ...filters, statut: e.target.value })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
-              <option value="">Tous</option>
-              {PRODUCT_STATUSES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Période du graphique</label>
-            <select
-              value={filters.periode}
-              onChange={(e) => setFilters({ ...filters, periode: e.target.value as typeof filters.periode })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
-              <option value="jour">Par jour</option>
-              <option value="semaine">Par semaine</option>
-              <option value="mois">Par mois</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-ink-soft mb-2">Grouper la répartition par</label>
-            <select
-              value={filters.groupe}
-              onChange={(e) => setFilters({ ...filters, groupe: e.target.value as typeof filters.groupe })}
-              className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
-              <option value="categorie">Catégorie</option>
-              <option value="fournisseur">Fournisseur</option>
-              <option value="produit">Produit</option>
-            </select>
-          </div>
-        </div>
-        {JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS) && (
-          <button
-            onClick={() => setFilters(EMPTY_FILTERS)}
-            className="mt-4 text-sm text-ink-soft underline hover:text-ink">
-            Réinitialiser les filtres
-          </button>
         )}
       </div>
 
@@ -273,7 +314,17 @@ export default function ReportsPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-sm text-ink-soft/70">CA (période sélectionnée)</p>
-          <p className="text-2xl font-bold text-ink">{montant(stats.ventes.chiffreAffaires)}</p>
+          <div className="flex items-baseline gap-2">
+            <p className="text-2xl font-bold text-ink">{montant(stats.ventes.chiffreAffaires)}</p>
+            {canSeeFinancials && stats.ventes.variationCA != null && (
+              <span className={`text-sm font-semibold ${stats.ventes.variationCA >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                {stats.ventes.variationCA >= 0 ? "+" : ""}{stats.ventes.variationCA}%
+              </span>
+            )}
+          </div>
+          {canSeeFinancials && stats.ventes.variationCA != null && (
+            <p className="text-xs text-ink-soft/60 mt-1">vs période précédente de même durée</p>
+          )}
         </div>
       </div>
 
@@ -289,6 +340,16 @@ export default function ReportsPage() {
               <Line type="monotone" dataKey="ca" stroke="#0b0b0c" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
+          {stats.ventes.prevision.basse != null && stats.ventes.prevision.haute != null && (
+            <div className="mt-4 bg-ivory-soft rounded-lg p-4">
+              <p className="text-xs text-ink-soft/70 mb-1">
+                Prévision pour la prochaine période de même durée (fourchette basée sur ta pire/meilleure période observée ici)
+              </p>
+              <p className="text-lg font-semibold text-ink">
+                {formatXAF(stats.ventes.prevision.basse)} – {formatXAF(stats.ventes.prevision.haute)}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -313,8 +374,15 @@ export default function ReportsPage() {
           {stats.ventes.meilleuresVentes.length > 0 ? (
             <ul className="divide-y divide-silver-soft">
               {stats.ventes.meilleuresVentes.map((v) => (
-                <li key={v.nom} className="flex justify-between py-2 text-sm">
-                  <span className="text-ink-soft">{v.nom}</span>
+                <li key={v.nom} className="flex justify-between items-center py-2 text-sm">
+                  <span className="text-ink-soft flex items-center gap-2">
+                    <FontAwesomeIcon
+                      icon={TENDANCE_ICON[v.tendance]}
+                      className={`w-3 h-3 ${TENDANCE_COLOR[v.tendance]}`}
+                      title={`Tendance : ${v.tendance} vs période précédente`}
+                    />
+                    {v.nom}
+                  </span>
                   <span className="text-right">
                     <span className="font-semibold text-ink">{v.quantite} vendu(s)</span>
                     {canSeeFinancials && v.ca != null && (
@@ -343,6 +411,31 @@ export default function ReportsPage() {
             <p className="text-ink-soft/70 text-sm">Aucune incohérence détectée.</p>
           )}
         </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 className="font-serif text-xl text-ink mb-1">Risque de rupture</h2>
+        <p className="text-xs text-ink-soft/60 mb-4">
+          Estimation basée sur le nombre de couleurs/tailles encore cochées comme disponibles — pas un stock chiffré.
+        </p>
+        {risqueTotal === 0 ? (
+          <p className="text-ink-soft/70 text-sm">Aucun produit disponible à évaluer.</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-red-50 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-red-600">{stats.risqueRupture.eleve}</p>
+              <p className="text-xs text-red-700 mt-1">Risque élevé</p>
+            </div>
+            <div className="bg-amber-50 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-amber-600">{stats.risqueRupture.moyen}</p>
+              <p className="text-xs text-amber-700 mt-1">Risque moyen</p>
+            </div>
+            <div className="bg-emerald-50 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-emerald-600">{stats.risqueRupture.faible}</p>
+              <p className="text-xs text-emerald-700 mt-1">Risque faible</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {canSeeFinancials && (

@@ -48,7 +48,7 @@ export const Navbar = () => {
     { href: "/orders", label: "Commandes", icon: faTruck },
     { href: "/invoices", label: "Factures", icon: faFileInvoice },
     { href: "/packaging", label: "Packaging", icon: faBoxOpen },
-    { href: "/reports", label: "Rapports", icon: faChartPie },
+    { href: "/reports", label: "Statistiques", icon: faChartPie },
     { href: "/admin", label: "Admin", icon: faCog },
   ];
 

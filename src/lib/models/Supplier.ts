@@ -6,6 +6,7 @@ export interface ISupplier extends Document {
   delai_moyen_jours: number;
   contact: string;
   notes: string;
+  actif: boolean;
 }
 
 const SupplierSchema = new Schema<ISupplier>({
@@ -14,6 +15,7 @@ const SupplierSchema = new Schema<ISupplier>({
   delai_moyen_jours: { type: Number, default: 0, min: 0 },
   contact: { type: String, default: '' },
   notes: { type: String, default: '' },
+  actif: { type: Boolean, default: true },
 });
 
 export default mongoose.models.Supplier || mongoose.model<ISupplier>('Supplier', SupplierSchema);
