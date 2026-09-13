@@ -130,7 +130,7 @@ export default function ProductsPage() {
         throw new Error(data.error || "Erreur lors de la création du produit");
       }
       toast.success("Produit créé");
-      router.push(`/products/${data.data._id}?tab=variantes`);
+      router.push(`/products/${data.data._id}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur inconnue";
       setFormError(message);
@@ -341,7 +341,7 @@ export default function ProductsPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
           </div>
         ) : filteredProducts.length > 0 ? (
-          <ProductList products={filteredProducts} />
+          <ProductList products={filteredProducts} onChanged={fetchProducts} />
         ) : (
           <div className="bg-white rounded-lg shadow p-8 text-center">
             <p className="text-ink-soft/70 text-lg">

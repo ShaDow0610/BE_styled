@@ -34,3 +34,28 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ success: false, error: 'Failed to update order tracking entry' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest, { params }: Params) {
+  try {
+    if (!canWrite(getRole(request))) {
+      return NextResponse.json({ success: false, error: 'Accès refusé' }, { status: 403 });
+    }
+
+    await dbConnect();
+    const { id } = await params;
+
+    const order = await OrderTracking.findById(id);
+    if (!order) {
+      return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
+    }
+    if (order.facture_id) {
+      return NextResponse.json({ success: false, error: 'Cette entrée est déjà facturée' }, { status: 400 });
+    }
+
+    await order.deleteOne();
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting order tracking entry:', error);
+    return NextResponse.json({ success: false, error: 'Failed to delete order tracking entry' }, { status: 500 });
+  }
+}
