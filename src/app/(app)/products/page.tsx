@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import ProductList, { ProductListItem } from "@/components/dashboard/ProductList";
+import { SkeletonTable } from "@/components/common/Skeleton";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPlus,
@@ -84,8 +85,8 @@ export default function ProductsPage() {
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const session = localStorage.getItem("user");
+    if (!session) {
       router.push("/login");
       return;
     }
@@ -337,9 +338,7 @@ export default function ProductsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}>
         {isLoading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
-          </div>
+          <SkeletonTable rows={8} cols={7} />
         ) : filteredProducts.length > 0 ? (
           <ProductList products={filteredProducts} onChanged={fetchProducts} />
         ) : (

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/common/ToastProvider";
+import { SkeletonTable } from "@/components/common/Skeleton";
+import { activeToggleClasses } from "@/lib/statusColors";
 
 interface UserRow {
   _id: string;
@@ -41,9 +43,9 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const session = localStorage.getItem("user");
     const userData = localStorage.getItem("user");
-    if (!token || !userData) {
+    if (!session || !userData) {
       router.push("/login");
       return;
     }
@@ -177,13 +179,11 @@ export default function UsersPage() {
         />
       </div>
 
+      {isLoading ? (
+        <SkeletonTable rows={5} cols={4} />
+      ) : (
       <div className="bg-white rounded-lg shadow p-6">
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-ink"></div>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
@@ -211,9 +211,7 @@ export default function UsersPage() {
                   <td className="py-2 pr-4">
                     <button
                       onClick={() => updateUser(u._id, { active: !u.active })}
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        u.active ? "bg-ivory-soft text-ink" : "bg-silver-soft text-ink-soft/60"
-                      }`}>
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${activeToggleClasses(u.active)}`}>
                       {u.active ? "Actif" : "Désactivé"}
                     </button>
                   </td>
@@ -222,8 +220,8 @@ export default function UsersPage() {
             </tbody>
           </table>
           </div>
-        )}
       </div>
+      )}
     </div>
   );
 }

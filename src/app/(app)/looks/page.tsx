@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatXAF } from "@/lib/currency";
+import { SkeletonCards } from "@/components/common/Skeleton";
 
 interface Look {
   _id: string;
@@ -49,9 +50,9 @@ export default function LooksPage() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const session = localStorage.getItem("user");
     const userData = localStorage.getItem("user");
-    if (!token) {
+    if (!session) {
       router.push("/login");
       return;
     }
@@ -134,9 +135,7 @@ export default function LooksPage() {
       )}
 
       {isLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-ink"></div>
-        </div>
+        <SkeletonCards count={6} />
       ) : looks.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <p className="text-ink-soft/70">Aucun look pour le moment.</p>

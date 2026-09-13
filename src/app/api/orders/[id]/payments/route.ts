@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import Payment from '@/lib/models/Payment';
-import { canWrite, getRole } from '@/lib/authz';
+import OrderTracking from '@/lib/models/OrderTracking';
+import { canWrite, canSeeFinancials, getRole } from '@/lib/authz';
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest, { params }: Params) {
   try {
+    if (!canSeeFinancials(getRole(request))) {
+      return NextResponse.json({ success: false, error: 'Accès refusé' }, { status: 403 });
+    }
+
     await dbConnect();
     const { id } = await params;
     const payments = await Payment.find({ order_tracking_id: id }).sort({ date_paiement: -1 }).lean();
@@ -30,6 +35,11 @@ export async function POST(request: NextRequest, { params }: Params) {
     const montant = Number(body.montant);
     if (!montant || montant <= 0) {
       return NextResponse.json({ success: false, error: 'Montant invalide' }, { status: 400 });
+    }
+
+    const order = await OrderTracking.exists({ _id: id });
+    if (!order) {
+      return NextResponse.json({ success: false, error: 'Commande introuvable' }, { status: 404 });
     }
 
     const payment = await Payment.create({

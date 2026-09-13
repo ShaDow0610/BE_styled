@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import Product, { PRODUCT_CATEGORIES } from '@/lib/models/Product';
 import { buildPriceIndex, resolvePrice } from '@/lib/priceResolver';
-import { canWrite, getRole } from '@/lib/authz';
+import { canWrite, canSeeFinancials, getRole } from '@/lib/authz';
 
 const CATEGORY_CODES: Record<string, string> = {
   pantalon: 'PANT',
@@ -34,6 +34,7 @@ export async function generateReference(categorie: string): Promise<string> {
 
 export async function GET(request: NextRequest) {
   try {
+    const showFinancials = canSeeFinancials(getRole(request));
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     const data = products.map((p) => ({
       ...p,
-      prix_actuel: resolvePrice(priceIndex, p._id.toString()),
+      prix_actuel: showFinancials ? resolvePrice(priceIndex, p._id.toString()) : null,
     }));
 
     return NextResponse.json({

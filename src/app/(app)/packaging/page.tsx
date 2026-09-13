@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUserRole } from "@/lib/useUserRole";
 import { useToast } from "@/components/common/ToastProvider";
 import { formatXAF } from "@/lib/currency";
+import { SkeletonStatCards, SkeletonTable } from "@/components/common/Skeleton";
 
 interface PackagingType {
   _id: string;
@@ -63,8 +64,8 @@ export default function PackagingPage() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const session = localStorage.getItem("user");
+    if (!session) {
       router.push("/login");
       return;
     }
@@ -142,8 +143,25 @@ export default function PackagingPage() {
 
   const handleDeletePurchase = async (id: string) => {
     if (!window.confirm("Supprimer cet achat de l'historique ? Cette action est irréversible.")) return;
-    await fetch(`/api/packaging-purchases/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/packaging-purchases/${id}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      toast.error(data.error || "Échec de la suppression");
+      return;
+    }
     toast.success("Achat supprimé");
+    load();
+  };
+
+  const handleDeleteType = async (type: PackagingType) => {
+    if (!window.confirm(`Supprimer définitivement le type "${type.nom}" ? L'historique des achats déjà enregistrés est conservé. Cette action est irréversible.`)) return;
+    const res = await fetch(`/api/packaging/${type._id}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      toast.error(data.error || "Échec de la suppression");
+      return;
+    }
+    toast.success("Type de packaging supprimé");
     load();
   };
 
@@ -156,8 +174,10 @@ export default function PackagingPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <SkeletonStatCards count={2} />
+        <SkeletonTable rows={4} cols={2} />
+        <SkeletonTable rows={5} cols={6} />
       </div>
     );
   }
@@ -190,6 +210,7 @@ export default function PackagingPage() {
                 <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
                   <th className="py-2 pr-4">Nom</th>
                   {canSeeFinancials && <th className="py-2 pr-4">Prix unitaire de référence</th>}
+                  {isAdmin && <th className="py-2 pr-4"></th>}
                 </tr>
               </thead>
               <tbody>
@@ -197,6 +218,13 @@ export default function PackagingPage() {
                   <tr key={t._id} className="border-b border-silver-soft/50">
                     <td className="py-2 pr-4 text-ink">{t.nom}</td>
                     {canSeeFinancials && <td className="py-2 pr-4 text-ink-soft">{formatXAF(t.prix_unitaire)}</td>}
+                    {isAdmin && (
+                      <td className="py-2 pr-4">
+                        <button onClick={() => handleDeleteType(t)} className="text-red-600 hover:underline text-xs">
+                          Supprimer
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -319,40 +347,70 @@ export default function PackagingPage() {
         {purchases.length === 0 ? (
           <p className="text-ink-soft/70 text-sm">Aucun achat enregistré pour le moment.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Type</th>
-                  <th className="py-2 pr-4">Fournisseur</th>
-                  <th className="py-2 pr-4">Quantité</th>
-                  {canSeeFinancials && <th className="py-2 pr-4">Prix unitaire</th>}
-                  {canSeeFinancials && <th className="py-2 pr-4">Montant</th>}
-                  {isAdmin && <th className="py-2 pr-4"></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {purchases.map((p) => (
-                  <tr key={p._id} className="border-b border-silver-soft/50">
-                    <td className="py-2 pr-4 text-ink-soft">{new Date(p.date_achat).toLocaleDateString("fr-FR")}</td>
-                    <td className="py-2 pr-4 text-ink">{p.nom}</td>
-                    <td className="py-2 pr-4 text-ink-soft">{p.fournisseur || "—"}</td>
-                    <td className="py-2 pr-4 text-ink-soft">{p.quantite}</td>
-                    {canSeeFinancials && <td className="py-2 pr-4 text-ink-soft">{formatXAF(p.prix_unitaire)}</td>}
-                    {canSeeFinancials && <td className="py-2 pr-4 font-semibold text-ink">{formatXAF(p.montant_total)}</td>}
-                    {isAdmin && (
-                      <td className="py-2 pr-4">
-                        <button onClick={() => handleDeletePurchase(p._id)} className="text-red-600 hover:underline text-xs">
-                          Supprimer
-                        </button>
-                      </td>
-                    )}
+          <>
+            {/* Mobile : une carte par achat */}
+            <div className="sm:hidden space-y-3">
+              {purchases.map((p) => (
+                <div key={p._id} className="border border-silver-soft rounded-lg p-3">
+                  <div className="flex justify-between items-start gap-2 mb-1">
+                    <p className="font-medium text-ink">{p.nom}</p>
+                    <p className="text-xs text-ink-soft/70 whitespace-nowrap">
+                      {new Date(p.date_achat).toLocaleDateString("fr-FR")}
+                    </p>
+                  </div>
+                  <p className="text-xs text-ink-soft">
+                    {p.fournisseur || "Sans fournisseur"} · Qté {p.quantite}
+                  </p>
+                  {canSeeFinancials && (
+                    <p className="text-sm font-semibold text-ink mt-1">
+                      {formatXAF(p.montant_total)} <span className="text-xs font-normal text-ink-soft/60">({formatXAF(p.prix_unitaire)}/u)</span>
+                    </p>
+                  )}
+                  {isAdmin && (
+                    <button onClick={() => handleDeletePurchase(p._id)} className="text-red-600 hover:underline text-xs mt-2">
+                      Supprimer
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop/tablette : tableau */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
+                    <th className="py-2 pr-4">Date</th>
+                    <th className="py-2 pr-4">Type</th>
+                    <th className="py-2 pr-4">Fournisseur</th>
+                    <th className="py-2 pr-4">Quantité</th>
+                    {canSeeFinancials && <th className="py-2 pr-4">Prix unitaire</th>}
+                    {canSeeFinancials && <th className="py-2 pr-4">Montant</th>}
+                    {isAdmin && <th className="py-2 pr-4"></th>}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {purchases.map((p) => (
+                    <tr key={p._id} className="border-b border-silver-soft/50">
+                      <td className="py-2 pr-4 text-ink-soft">{new Date(p.date_achat).toLocaleDateString("fr-FR")}</td>
+                      <td className="py-2 pr-4 text-ink">{p.nom}</td>
+                      <td className="py-2 pr-4 text-ink-soft">{p.fournisseur || "—"}</td>
+                      <td className="py-2 pr-4 text-ink-soft">{p.quantite}</td>
+                      {canSeeFinancials && <td className="py-2 pr-4 text-ink-soft">{formatXAF(p.prix_unitaire)}</td>}
+                      {canSeeFinancials && <td className="py-2 pr-4 font-semibold text-ink">{formatXAF(p.montant_total)}</td>}
+                      {isAdmin && (
+                        <td className="py-2 pr-4">
+                          <button onClick={() => handleDeletePurchase(p._id)} className="text-red-600 hover:underline text-xs">
+                            Supprimer
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

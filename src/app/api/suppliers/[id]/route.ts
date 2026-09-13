@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import Supplier from '@/lib/models/Supplier';
-import { canWrite, getRole } from '@/lib/authz';
+import Product from '@/lib/models/Product';
+import { canWrite, isAdmin, getRole } from '@/lib/authz';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -28,12 +29,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
-    if (!canWrite(getRole(request))) {
+    if (!isAdmin(getRole(request))) {
       return NextResponse.json({ success: false, error: 'Accès refusé' }, { status: 403 });
     }
 
     await dbConnect();
     const { id } = await params;
+
+    const inUse = await Product.exists({ fournisseur_id: id });
+    if (inUse) {
+      return NextResponse.json(
+        { success: false, error: 'Ce fournisseur est utilisé par au moins un produit — réaffecte-les avant de le supprimer.' },
+        { status: 400 }
+      );
+    }
 
     const supplier = await Supplier.findByIdAndDelete(id);
     if (!supplier) {

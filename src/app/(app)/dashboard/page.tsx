@@ -16,6 +16,7 @@ import {
   Tooltip,
 } from "recharts";
 import StatCard from "@/components/dashboard/StatCard";
+import { SkeletonStatCards, SkeletonPanel } from "@/components/common/Skeleton";
 import { useUserRole } from "@/lib/useUserRole";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -24,6 +25,8 @@ import {
   faTruck,
   faCartShopping,
   faCircleExclamation,
+  faChevronDown,
+  faChevronUp,
 } from "@fortawesome/free-solid-svg-icons";
 import { formatXAF } from "@/lib/currency";
 
@@ -57,7 +60,7 @@ interface ProduitsParStatut {
 interface Ventes30j {
   nombreVentes: number;
   chiffreAffaires: number;
-  meilleuresVentes: { nom: string; quantite: number }[];
+  meilleuresVentes: { nom: string; quantite: number; ca?: number }[];
   parJour: { date: string; ca: number }[];
   previsionCA30jSuivants: number;
   encaissements30j: number;
@@ -110,10 +113,11 @@ export default function DashboardPage() {
   const { canSeeFinancials } = useUserRole();
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [isLoading, setIsLoading] = useState(true);
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const session = localStorage.getItem("user");
+    if (!session) {
       router.push("/login");
       return;
     }
@@ -143,16 +147,19 @@ export default function DashboardPage() {
     router.push("/");
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
-      </div>
-    );
-  }
-
   const produitsEnCours = stats.produitsParStatut.filter((v) => v.statut !== "disponible");
   const montant = (n: number) => (canSeeFinancials ? formatXAF(n) : "—");
+
+  // Ces cartes pointent vers des sections repliées dans "Voir le détail" —
+  // on les déplie avant de faire défiler, sinon la cible n'existe pas encore.
+  const goToSection = (id: string) => {
+    setShowDetails(true);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -169,20 +176,27 @@ export default function DashboardPage() {
         </button>
       </motion.div>
 
-      {/* Stats Cards — cliquables */}
+      {isLoading ? (
+        <>
+          <div className="mb-8"><SkeletonStatCards count={4} /></div>
+          <SkeletonPanel lines={3} />
+        </>
+      ) : (
+      <>
+      {/* Stats Cards — cliquables : les 3-5 chiffres essentiels, toujours visibles */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Link href="/products">
           <StatCard title="Total Produits" value={stats.totalProduits} icon={<FontAwesomeIcon icon={faBox} />} color="bg-ink" />
         </Link>
-        <a href="#repartition">
+        <button type="button" onClick={() => goToSection("repartition")} className="text-left">
           <StatCard title="Produits disponibles" value={stats.produitsDisponibles} icon={<FontAwesomeIcon icon={faCheckCircle} />} color="bg-ink-soft" />
-        </a>
-        <a href="#transit">
+        </button>
+        <button type="button" onClick={() => goToSection("transit")} className="text-left">
           <StatCard title="Produits en Transit" value={stats.produitsEnTransit.length} icon={<FontAwesomeIcon icon={faTruck} />} color="bg-ink" />
-        </a>
-        <a href="#ventes">
+        </button>
+        <button type="button" onClick={() => goToSection("ventes")} className="text-left">
           <StatCard title="Ventes (30j)" value={montant(stats.ventes30j.chiffreAffaires)} icon={<FontAwesomeIcon icon={faCartShopping} />} color="bg-ink-soft" />
-        </a>
+        </button>
       </div>
 
       {/* Points d'attention */}
@@ -208,6 +222,15 @@ export default function DashboardPage() {
         </motion.div>
       )}
 
+      <button
+        type="button"
+        onClick={() => setShowDetails((v) => !v)}
+        className="flex items-center gap-2 text-sm text-ink-soft hover:text-ink mb-6">
+        <FontAwesomeIcon icon={showDetails ? faChevronUp : faChevronDown} className="w-3 h-3" />
+        {showDetails ? "Masquer le détail" : "Voir le détail (marges, répartitions, transit...)"}
+      </button>
+
+      {showDetails && (
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Marge moyenne par catégorie */}
         {canSeeFinancials && (
@@ -277,7 +300,12 @@ export default function DashboardPage() {
               {stats.ventes30j.meilleuresVentes.map((v) => (
                 <li key={v.nom} className="flex justify-between py-2 text-sm">
                   <span className="text-ink-soft">{v.nom}</span>
-                  <span className="font-semibold text-ink">{v.quantite} vendu(s)</span>
+                  <span className="text-right">
+                    <span className="font-semibold text-ink">{v.quantite} vendu(s)</span>
+                    {canSeeFinancials && v.ca != null && (
+                      <span className="block text-xs text-ink-soft/60">{montant(v.ca)}</span>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -384,6 +412,9 @@ export default function DashboardPage() {
           )}
         </motion.div>
       </div>
+      )}
+      </>
+      )}
     </div>
   );
 }

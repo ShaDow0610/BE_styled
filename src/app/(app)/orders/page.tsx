@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/components/common/ToastProvider";
 import { useUserRole } from "@/lib/useUserRole";
 import { formatXAF } from "@/lib/currency";
+import { SkeletonKanban } from "@/components/common/Skeleton";
 
 const CATEGORY_ICONS: Record<string, IconDefinition> = {
   pantalon: faSocks,
@@ -80,6 +81,7 @@ export default function OrdersPage() {
   const [showReapproForm, setShowReapproForm] = useState(false);
   const [showVenteModal, setShowVenteModal] = useState(false);
   const [products, setProducts] = useState<ProductOption[]>([]);
+  const [bestSellerIds, setBestSellerIds] = useState<string[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedCouleur, setSelectedCouleur] = useState("");
   const [selectedTaille, setSelectedTaille] = useState("");
@@ -92,9 +94,9 @@ export default function OrdersPage() {
   const draggedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const session = localStorage.getItem("user");
     const userData = localStorage.getItem("user");
-    if (!token) {
+    if (!session) {
       router.push("/login");
       return;
     }
@@ -117,6 +119,16 @@ export default function OrdersPage() {
           }))
         )
       );
+    // Utilisé pour remonter les articles les plus vendus en tête du
+    // sélecteur de vente rapide — évite de chercher/scroller pour les
+    // articles vendus tous les jours.
+    fetch("/api/dashboard/stats")
+      .then((r) => r.json())
+      .then((d) => {
+        const top = d?.data?.ventes30j?.meilleuresVentes ?? [];
+        setBestSellerIds(top.map((v: { productId: string }) => v.productId).filter(Boolean));
+      })
+      .catch(() => {});
   }, [router]);
 
   const load = async () => {
@@ -286,15 +298,14 @@ export default function OrdersPage() {
       {showVenteModal && (
         <NouvelleVenteModal
           products={products}
+          bestSellerIds={bestSellerIds}
           onClose={() => setShowVenteModal(false)}
           onCreated={load}
         />
       )}
 
       {isLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-ink"></div>
-        </div>
+        <SkeletonKanban columns={6} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {STATUSES.map((col) => (
@@ -400,10 +411,12 @@ export default function OrdersPage() {
 
 function NouvelleVenteModal({
   products,
+  bestSellerIds,
   onClose,
   onCreated,
 }: {
   products: ProductOption[];
+  bestSellerIds: string[];
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -418,8 +431,18 @@ function NouvelleVenteModal({
   const [error, setError] = useState("");
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
+  // Les articles les plus vendus récemment remontent en premier — pas
+  // besoin de chercher/scroller pour ceux vendus tous les jours.
   const availableProducts = products
-    .filter((p) => p.nom.toLowerCase().includes(search.toLowerCase()));
+    .filter((p) => p.nom.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      const rankA = bestSellerIds.indexOf(a._id);
+      const rankB = bestSellerIds.indexOf(b._id);
+      if (rankA === -1 && rankB === -1) return 0;
+      if (rankA === -1) return 1;
+      if (rankB === -1) return -1;
+      return rankA - rankB;
+    });
 
   const handlePickProduct = (product: ProductOption) => {
     setSelectedProduct(product);
@@ -522,7 +545,13 @@ function NouvelleVenteModal({
                   <button
                     key={p._id}
                     onClick={() => handlePickProduct(p)}
-                    className="flex items-center gap-3 p-3 border border-silver-soft rounded-lg hover:border-ink hover:bg-ivory-soft transition-colors text-left">
+                    className="relative flex items-center gap-3 p-3 border border-silver-soft rounded-lg hover:border-ink hover:bg-ivory-soft transition-colors text-left">
+                    {bestSellerIds.includes(p._id) && (
+                      <span
+                        title="Parmi les plus vendus récemment"
+                        className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-500"
+                      />
+                    )}
                     <FontAwesomeIcon icon={CATEGORY_ICONS[p.categorie] || faTags} className="w-5 h-5 text-ink-soft shrink-0" />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink truncate">{p.nom}</p>

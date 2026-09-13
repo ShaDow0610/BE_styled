@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import PromoCode from '@/lib/models/PromoCode';
-import { canWrite, getRole } from '@/lib/authz';
+import { canWrite, isAdmin, getRole } from '@/lib/authz';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -28,7 +28,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
-    if (!canWrite(getRole(request))) {
+    if (!isAdmin(getRole(request))) {
       return NextResponse.json({ success: false, error: 'Accès refusé' }, { status: 403 });
     }
 

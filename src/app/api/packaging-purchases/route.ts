@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import PackagingPurchase from '@/lib/models/PackagingPurchase';
-import { canWrite, getRole } from '@/lib/authz';
+import { canWrite, canSeeFinancials, getRole } from '@/lib/authz';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const showFinancials = canSeeFinancials(getRole(request));
     await dbConnect();
     const purchases = await PackagingPurchase.find().sort({ date_achat: -1 }).lean();
-    return NextResponse.json({ success: true, data: purchases });
+    const data = showFinancials
+      ? purchases
+      : purchases.map((p) => ({ ...p, prix_unitaire: null, montant_total: null }));
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching packaging purchases:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch packaging purchases' }, { status: 500 });

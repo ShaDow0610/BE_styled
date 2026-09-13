@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/common/ToastProvider";
 import { useUserRole } from "@/lib/useUserRole";
+import { SkeletonPanel } from "@/components/common/Skeleton";
 
 export default function ExchangeRatesPage() {
   const router = useRouter();
@@ -17,8 +18,8 @@ export default function ExchangeRatesPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const session = localStorage.getItem("user");
+    if (!session) {
       router.push("/login");
       return;
     }
@@ -90,9 +91,7 @@ export default function ExchangeRatesPage() {
       </p>
 
       {isLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-ink"></div>
-        </div>
+        <SkeletonPanel lines={3} />
       ) : (
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 grid gap-4">
           <div>

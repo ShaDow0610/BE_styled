@@ -1,69 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { dbConnect } from '@/lib/db/connection';
+import User from '@/lib/models/User';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
-const PUBLIC_ROUTES = ['/login', '/api/auth/login'];
+const JWT_SECRET_ENV = process.env.JWT_SECRET;
+if (!JWT_SECRET_ENV) {
+  // Pas de filet de secours : signer/vérifier des tokens avec une valeur par
+  // défaut connue permettrait de forger un token admin.
+  throw new Error('JWT_SECRET environment variable is required');
+}
+const JWT_SECRET: string = JWT_SECRET_ENV;
 
-export function proxy(request: NextRequest) {
+// Seules ces zones sont accessibles sans compte : la vitrine publique et
+// l'écran de connexion. Tout le reste du gestionnaire (produits, commandes,
+// factures, looks, rapports, packaging, dashboard, admin...) exige un compte
+// actif — évite d'oublier un préfixe de page à chaque nouvelle section.
+function isPublicPath(pathname: string): boolean {
+  return pathname === '/login' || pathname === '/api/auth/login' || pathname.startsWith('/boutique');
+}
+
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  const isApi = pathname.startsWith('/api');
 
   // La racine mène directement à la vitrine publique
   if (pathname === '/') {
     return NextResponse.redirect(new URL('/boutique', request.url));
   }
 
-  // Routes publiques - ne pas protéger
-  if (PUBLIC_ROUTES.includes(pathname)) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
-  // Pages protégées
-  if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
-    const token = request.cookies.get('token')?.value;
+  const authHeader = request.headers.get('authorization');
+  const token = (isApi && authHeader?.replace('Bearer ', '')) || request.cookies.get('token')?.value;
 
-    if (!token) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+  const reject = () =>
+    isApi
+      ? NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+      : NextResponse.redirect(new URL('/login', request.url));
 
-    try {
-      jwt.verify(token, JWT_SECRET);
-      return NextResponse.next();
-    } catch (error) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+  if (!token) {
+    return reject();
   }
 
-  // Routes API protégées
-  if (pathname.startsWith('/api') && !pathname.startsWith('/api/auth/login')) {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '') || request.cookies.get('token')?.value;
+  let decoded: { userId: string };
+  try {
+    decoded = jwt.verify(token, JWT_SECRET) as unknown as { userId: string };
+  } catch {
+    return reject();
+  }
 
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+  // Revérifie le compte en base à chaque requête plutôt que de faire
+  // confiance au rôle figé dans le JWT : une désactivation ou un changement
+  // de rôle (fait depuis /admin/users) doit prendre effet immédiatement,
+  // pas seulement dans 7 jours quand le token expire.
+  await dbConnect();
+  const user = await User.findById(decoded.userId).select('role active').lean();
 
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+  if (!user || !user.active) {
+    const response = reject();
+    response.cookies.delete('token');
+    return response;
+  }
 
-      // Ajouter les infos utilisateur aux headers pour les routes API
-      const requestHeaders = new Headers(request.headers);
-      requestHeaders.set('x-user-id', decoded.userId);
-      requestHeaders.set('x-user-role', decoded.role);
+  if (isApi) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-user-id', decoded.userId);
+    requestHeaders.set('x-user-role', user.role);
 
-      return NextResponse.next({
-        request: {
-          headers: requestHeaders,
-        },
-      });
-    } catch (error) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid token' },
-        { status: 401 }
-      );
-    }
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
   }
 
   return NextResponse.next();

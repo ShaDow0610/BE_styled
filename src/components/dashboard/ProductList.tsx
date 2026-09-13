@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useUserRole } from "@/lib/useUserRole";
 import { useToast } from "@/components/common/ToastProvider";
 import { formatXAF } from "@/lib/currency";
+import { productStatutClasses } from "@/lib/statusColors";
 
 export interface ProductListItem {
   _id: string;
@@ -76,77 +77,113 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onChanged })
     }
   };
 
+  const StatutBadge = ({ statut }: { statut: string }) => (
+    <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${productStatutClasses(statut)}`}>
+      {STATUT_LABELS[statut] ?? statut}
+    </span>
+  );
+
+  const RowActions = ({ product }: { product: ProductListItem }) => (
+    <div className="flex items-center gap-3 flex-wrap">
+      <Link href={`/products/${product._id}`} className="text-ink underline hover:no-underline">
+        Modifier
+      </Link>
+      {canWrite && (
+        <button
+          type="button"
+          disabled={pendingId === product._id}
+          onClick={() => handleToggleArchive(product)}
+          className="text-ink-soft underline hover:no-underline disabled:opacity-50">
+          {product.statut === "archive" ? "Désarchiver" : "Archiver"}
+        </button>
+      )}
+      {isAdmin && (
+        <button
+          type="button"
+          disabled={pendingId === product._id}
+          onClick={() => handleDelete(product)}
+          className="text-red-600 underline hover:no-underline disabled:opacity-50">
+          Supprimer
+        </button>
+      )}
+    </div>
+  );
+
   return (
-    <div className="bg-white rounded-lg shadow overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
-            <th className="py-3 px-4">Référence</th>
-            <th className="py-3 px-4">Nom</th>
-            <th className="py-3 px-4">Catégorie</th>
-            <th className="py-3 px-4">Statut</th>
-            <th className="py-3 px-4">Couleurs dispo.</th>
-            <th className="py-3 px-4">Tailles dispo.</th>
-            {canSeeFinancials && <th className="py-3 px-4">Prix</th>}
-            <th className="py-3 px-4"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((product) => (
-            <tr key={product._id} className="border-b border-silver-soft/50 hover:bg-ivory-soft/60">
-              <td className="py-3 px-4 text-ink-soft whitespace-nowrap">{product.reference}</td>
-              <td className="py-3 px-4 text-ink font-medium">
-                <Link href={`/products/${product._id}`} className="hover:underline">
+    <>
+      {/* Mobile : une carte par produit, plus confortable qu'un tableau qui défile horizontalement. */}
+      <div className="sm:hidden space-y-3">
+        {products.map((product) => (
+          <div key={product._id} className="bg-white rounded-lg shadow p-4">
+            <div className="flex justify-between items-start gap-2 mb-2">
+              <div className="min-w-0">
+                <Link href={`/products/${product._id}`} className="font-medium text-ink hover:underline block truncate">
                   {product.nom}
                 </Link>
-              </td>
-              <td className="py-3 px-4 text-ink-soft capitalize">{product.categorie}</td>
-              <td className="py-3 px-4">
-                <span className="px-3 py-1 rounded-full text-xs font-medium bg-ivory-soft text-ink-soft whitespace-nowrap">
-                  {STATUT_LABELS[product.statut] ?? product.statut}
-                </span>
-              </td>
-              <td className="py-3 px-4 text-ink-soft">
-                {product.couleurs_disponibles && product.couleurs_disponibles.length > 0 ? product.couleurs_disponibles.join(", ") : "—"}
-              </td>
-              <td className="py-3 px-4 text-ink-soft">
-                {product.tailles_disponibles && product.tailles_disponibles.length > 0 ? product.tailles_disponibles.join(", ") : "—"}
-              </td>
+                <p className="text-xs text-ink-soft/70">{product.reference} · <span className="capitalize">{product.categorie}</span></p>
+              </div>
+              <StatutBadge statut={product.statut} />
+            </div>
+            <div className="text-xs text-ink-soft space-y-0.5 mb-3">
+              <p>Couleurs : {product.couleurs_disponibles?.length ? product.couleurs_disponibles.join(", ") : "—"}</p>
+              <p>Tailles : {product.tailles_disponibles?.length ? product.tailles_disponibles.join(", ") : "—"}</p>
               {canSeeFinancials && (
-                <td className="py-3 px-4 text-ink font-semibold whitespace-nowrap">
-                  {product.prix_actuel != null ? formatXAF(product.prix_actuel) : "—"}
-                </td>
+                <p className="text-ink font-semibold">{product.prix_actuel != null ? formatXAF(product.prix_actuel) : "—"}</p>
               )}
-              <td className="py-3 px-4">
-                <div className="flex items-center gap-3 whitespace-nowrap">
-                  <Link href={`/products/${product._id}`} className="text-ink underline hover:no-underline">
-                    Modifier
-                  </Link>
-                  {canWrite && (
-                    <button
-                      type="button"
-                      disabled={pendingId === product._id}
-                      onClick={() => handleToggleArchive(product)}
-                      className="text-ink-soft underline hover:no-underline disabled:opacity-50">
-                      {product.statut === "archive" ? "Désarchiver" : "Archiver"}
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      disabled={pendingId === product._id}
-                      onClick={() => handleDelete(product)}
-                      className="text-red-600 underline hover:no-underline disabled:opacity-50">
-                      Supprimer
-                    </button>
-                  )}
-                </div>
-              </td>
+            </div>
+            <RowActions product={product} />
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop/tablette : tableau classique. */}
+      <div className="hidden sm:block bg-white rounded-lg shadow overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-ink-soft/70 border-b border-silver-soft">
+              <th className="py-3 px-4">Référence</th>
+              <th className="py-3 px-4">Nom</th>
+              <th className="py-3 px-4">Catégorie</th>
+              <th className="py-3 px-4">Statut</th>
+              <th className="py-3 px-4">Couleurs dispo.</th>
+              <th className="py-3 px-4">Tailles dispo.</th>
+              {canSeeFinancials && <th className="py-3 px-4">Prix</th>}
+              <th className="py-3 px-4"></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {products.map((product) => (
+              <tr key={product._id} className="border-b border-silver-soft/50 hover:bg-ivory-soft/60">
+                <td className="py-3 px-4 text-ink-soft whitespace-nowrap">{product.reference}</td>
+                <td className="py-3 px-4 text-ink font-medium">
+                  <Link href={`/products/${product._id}`} className="hover:underline">
+                    {product.nom}
+                  </Link>
+                </td>
+                <td className="py-3 px-4 text-ink-soft capitalize">{product.categorie}</td>
+                <td className="py-3 px-4">
+                  <StatutBadge statut={product.statut} />
+                </td>
+                <td className="py-3 px-4 text-ink-soft">
+                  {product.couleurs_disponibles && product.couleurs_disponibles.length > 0 ? product.couleurs_disponibles.join(", ") : "—"}
+                </td>
+                <td className="py-3 px-4 text-ink-soft">
+                  {product.tailles_disponibles && product.tailles_disponibles.length > 0 ? product.tailles_disponibles.join(", ") : "—"}
+                </td>
+                {canSeeFinancials && (
+                  <td className="py-3 px-4 text-ink font-semibold whitespace-nowrap">
+                    {product.prix_actuel != null ? formatXAF(product.prix_actuel) : "—"}
+                  </td>
+                )}
+                <td className="py-3 px-4">
+                  <RowActions product={product} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 };
 

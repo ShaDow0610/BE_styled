@@ -24,8 +24,10 @@ export default function LoginPage() {
 
       const data = await response.json();
 
-      // Stocker le token
-      localStorage.setItem("token", data.data.token);
+      // L'authentification réelle repose sur le cookie httpOnly posé par le
+      // serveur (jamais accessible en JS) — on ne garde ici que le profil,
+      // utile pour l'affichage conditionnel selon le rôle et pour détecter
+      // côté client qu'une session est censée être active.
       localStorage.setItem("user", JSON.stringify(data.data.user));
 
       // Rediriger vers le dashboard

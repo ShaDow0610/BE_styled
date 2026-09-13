@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import Packaging from '@/lib/models/Packaging';
-import { canWrite, getRole } from '@/lib/authz';
+import { canWrite, canSeeFinancials, getRole } from '@/lib/authz';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const showFinancials = canSeeFinancials(getRole(request));
     await dbConnect();
     const options = await Packaging.find().sort({ nom: 1 }).lean();
-    return NextResponse.json({ success: true, data: options });
+    const data = showFinancials ? options : options.map((o) => ({ ...o, prix_unitaire: null }));
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching packaging options:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch packaging options' }, { status: 500 });

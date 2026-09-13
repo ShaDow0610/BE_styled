@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/common/ToastProvider";
 import { formatXAF } from "@/lib/currency";
+import { SkeletonPanel } from "@/components/common/Skeleton";
 
 interface OrderEntry {
   _id: string;
@@ -63,8 +64,8 @@ function NewInvoiceForm() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const session = localStorage.getItem("user");
+    if (!session) {
       router.push("/login");
       return;
     }
@@ -153,8 +154,9 @@ function NewInvoiceForm() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
+      <div className="container mx-auto px-4 py-8 max-w-3xl space-y-6">
+        <SkeletonPanel lines={3} />
+        <SkeletonPanel lines={4} />
       </div>
     );
   }

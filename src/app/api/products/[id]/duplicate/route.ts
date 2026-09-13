@@ -32,7 +32,10 @@ export async function POST(request: NextRequest, { params }: Params) {
       fournisseur_id: source.fournisseur_id || null,
       matiere: source.matiere || '',
       poids_kg: source.poids_kg,
-      statut: source.statut,
+      // Toujours "brouillon", même si la source est "disponible" : le
+      // duplicata n'a pas encore de photos (non copiées, voir plus bas) et
+      // ne doit pas apparaître sur la vitrine publique avant d'être complété.
+      statut: 'brouillon',
       couleurs_disponibles: source.couleurs_disponibles || [],
       tailles_disponibles: source.tailles_disponibles || [],
       reference,

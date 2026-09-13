@@ -3,6 +3,12 @@ import { dbConnect } from '@/lib/db/connection';
 import User from '@/lib/models/User';
 import jwt from 'jsonwebtoken';
 
+const JWT_SECRET_ENV = process.env.JWT_SECRET;
+if (!JWT_SECRET_ENV) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
+const JWT_SECRET: string = JWT_SECRET_ENV;
+
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();
@@ -35,6 +41,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!user.active) {
+      return NextResponse.json(
+        { success: false, error: 'Ce compte est désactivé' },
+        { status: 403 }
+      );
+    }
+
     // Mettre à jour lastLogin
     user.lastLogin = new Date();
     await user.save();
@@ -46,7 +59,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         role: user.role,
       },
-      process.env.JWT_SECRET || 'default-secret',
+      JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRATION || '7d' } as any
     );
 

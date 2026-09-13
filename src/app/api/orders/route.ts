@@ -3,10 +3,11 @@ import { dbConnect } from '@/lib/db/connection';
 import OrderTracking from '@/lib/models/OrderTracking';
 import Payment from '@/lib/models/Payment';
 import { buildPriceIndex, resolvePrice } from '@/lib/priceResolver';
-import { canWrite, getRole } from '@/lib/authz';
+import { canWrite, canSeeFinancials, getRole } from '@/lib/authz';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const showFinancials = canSeeFinancials(getRole(request));
     await dbConnect();
     const orders = await OrderTracking.find()
       .sort({ date_maj: -1 })
@@ -34,7 +35,9 @@ export async function GET() {
     const paymentsMap = new Map(paymentsByOrder.map((p) => [p._id.toString(), p.total]));
 
     const data = orders.map((o) => {
-      if (o.type !== 'commande_client') return o;
+      if (o.type !== 'commande_client') {
+        return showFinancials ? o : { ...o, prix_unitaire: null };
+      }
 
       let montant_total = o.montant_total;
       if (montant_total == null) {
@@ -44,6 +47,9 @@ export async function GET() {
       }
       const montant_encaisse = Math.round((paymentsMap.get(o._id.toString()) ?? 0) * 100) / 100;
 
+      if (!showFinancials) {
+        return { ...o, montant_total: null, montant_encaisse: null, prix_unitaire: null };
+      }
       return { ...o, montant_total, montant_encaisse };
     });
 

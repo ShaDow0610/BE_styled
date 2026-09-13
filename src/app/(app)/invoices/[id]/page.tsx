@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
 import { formatXAF } from "@/lib/currency";
+import { buildWhatsAppReminderLink } from "@/lib/whatsapp";
+import { SkeletonPanel } from "@/components/common/Skeleton";
 
 interface InvoiceLine {
   produit_nom: string;
@@ -23,6 +27,8 @@ interface Invoice {
   date_facture: string;
   lignes: InvoiceLine[];
   montant_total: number;
+  montantEncaisse: number;
+  resteAPayer: number;
 }
 
 const BUSINESS_ADDRESS = process.env.NEXT_PUBLIC_BUSINESS_ADDRESS;
@@ -37,8 +43,8 @@ export default function InvoiceDetailPage() {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const session = localStorage.getItem("user");
+    if (!session) {
       router.push("/login");
       return;
     }
@@ -58,8 +64,8 @@ export default function InvoiceDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
+      <div className="container mx-auto px-4 py-8 max-w-3xl">
+        <SkeletonPanel lines={6} />
       </div>
     );
   }
@@ -75,17 +81,35 @@ export default function InvoiceDetailPage() {
     );
   }
 
+  const reminderLink = buildWhatsAppReminderLink({
+    telephone: invoice.client_telephone,
+    numeroFacture: invoice.numero_facture,
+    montantDu: formatXAF(invoice.resteAPayer),
+  });
+
   return (
     <div className="container mx-auto px-4 py-8 print:py-0 max-w-3xl">
-      <div className="flex justify-between items-center mb-8 print:hidden">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-8 print:hidden">
         <Link href="/invoices" className="px-4 py-2 border border-silver-soft text-ink-soft rounded-lg hover:bg-ivory-soft transition-colors">
           ← Retour aux factures
         </Link>
-        <button
-          onClick={() => window.print()}
-          className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
-          Imprimer / Exporter en PDF
-        </button>
+        <div className="flex flex-wrap gap-3">
+          {invoice.resteAPayer > 0 && reminderLink && (
+            <a
+              href={reminderLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-6 py-2 border border-ink text-ink rounded-lg hover:bg-ink hover:text-ivory transition-colors">
+              <FontAwesomeIcon icon={faWhatsapp} className="w-4 h-4" />
+              Relancer sur WhatsApp
+            </a>
+          )}
+          <button
+            onClick={() => window.print()}
+            className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
+            Imprimer / Exporter en PDF
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow p-8 print:shadow-none print:p-0">
@@ -135,9 +159,15 @@ export default function InvoiceDetailPage() {
         </table>
 
         <div className="flex justify-end">
-          <div className="text-right">
+          <div className="text-right space-y-1">
             <p className="text-xs uppercase tracking-wide text-ink-soft/60">Total</p>
             <p className="text-2xl font-bold text-ink">{formatXAF(invoice.montant_total)}</p>
+            {invoice.resteAPayer > 0 && (
+              <>
+                <p className="text-xs text-ink-soft/70">Encaissé : {formatXAF(invoice.montantEncaisse)}</p>
+                <p className="text-sm font-semibold text-amber-600">Reste à payer : {formatXAF(invoice.resteAPayer)}</p>
+              </>
+            )}
           </div>
         </div>
       </div>

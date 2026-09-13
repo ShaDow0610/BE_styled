@@ -7,6 +7,7 @@ import OrderTracking from '@/lib/models/OrderTracking';
 import Payment from '@/lib/models/Payment';
 import { buildPriceIndex, resolvePrice } from '@/lib/priceResolver';
 import { bucketKey, Periode } from '@/lib/dateBucket';
+import { canSeeFinancials, getRole } from '@/lib/authz';
 
 const PERIODES: Periode[] = ['jour', 'semaine', 'mois'];
 const GROUPES = ['categorie', 'fournisseur', 'produit'] as const;
@@ -14,6 +15,7 @@ type Groupe = (typeof GROUPES)[number];
 
 export async function GET(request: NextRequest) {
   try {
+    const showFinancials = canSeeFinancials(getRole(request));
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
@@ -133,7 +135,7 @@ export async function GET(request: NextRequest) {
 
     // Ventes sur la période demandée, restreintes aux produits filtrés.
     let chiffreAffaires = 0;
-    const ventesParProduit = new Map<string, { nom: string; quantite: number }>();
+    const ventesParProduit = new Map<string, { nom: string; quantite: number; ca: number }>();
     const parBucket = new Map<string, number>();
     let nombreVentes = 0;
     for (const sale of recentSales as any[]) {
@@ -154,13 +156,16 @@ export async function GET(request: NextRequest) {
       const key = bucketKey(new Date(sale.date_maj), periode);
       parBucket.set(key, (parBucket.get(key) ?? 0) + montantVente);
 
-      const bucket = ventesParProduit.get(product._id.toString()) || { nom: product.nom, quantite: 0 };
+      const bucket = ventesParProduit.get(product._id.toString()) || { nom: product.nom, quantite: 0, ca: 0 };
       bucket.quantite += sale.quantite;
+      bucket.ca += montantVente;
       ventesParProduit.set(product._id.toString(), bucket);
     }
+    // Classé par chiffre d'affaires généré, pas par quantité (voir dashboard/stats).
     const meilleuresVentes = Array.from(ventesParProduit.values())
-      .sort((a, b) => b.quantite - a.quantite)
-      .slice(0, 5);
+      .sort((a, b) => b.ca - a.ca)
+      .slice(0, 5)
+      .map((v) => ({ ...v, ca: Math.round(v.ca * 100) / 100 }));
     const parPeriode = Array.from(parBucket.entries())
       .map(([date, ca]) => ({ date, ca: Math.round(ca * 100) / 100 }))
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -184,6 +189,13 @@ export async function GET(request: NextRequest) {
           message: `"${p.nom}" n'a aucune couleur ni taille renseignée`,
           lien: `/products/${id}`,
           severite: 'critique',
+        });
+      } else if (p.statut === 'disponible' && (p.couleurs_disponibles?.length === 1 || p.tailles_disponibles?.length === 1)) {
+        pointsAttention.push({
+          type: 'stock_faible',
+          message: `"${p.nom}" n'a plus qu'une seule ${p.couleurs_disponibles?.length === 1 ? 'couleur' : 'taille'} disponible — pense à réapprovisionner`,
+          lien: `/products/${id}`,
+          severite: 'attention',
         });
       }
     }
@@ -221,17 +233,19 @@ export async function GET(request: NextRequest) {
         },
         totalProduits: allProducts.length,
         produitsDisponibles,
-        margeMoyenneParCategorie,
+        margeMoyenneParCategorie: showFinancials ? margeMoyenneParCategorie : [],
         repartition,
         repartitionOrigine,
         produitsParStatut,
         ventes: {
           nombreVentes,
-          chiffreAffaires: Math.round(chiffreAffaires * 100) / 100,
-          meilleuresVentes,
-          parPeriode,
-          encaissements: Math.round(encaissements * 100) / 100,
-          resteAPayer: Math.round(resteAPayer * 100) / 100,
+          chiffreAffaires: showFinancials ? Math.round(chiffreAffaires * 100) / 100 : null,
+          meilleuresVentes: showFinancials
+            ? meilleuresVentes
+            : meilleuresVentes.map((v) => ({ nom: v.nom, quantite: v.quantite })),
+          parPeriode: showFinancials ? parPeriode : [],
+          encaissements: showFinancials ? Math.round(encaissements * 100) / 100 : null,
+          resteAPayer: showFinancials ? Math.round(resteAPayer * 100) / 100 : null,
         },
         pointsAttention,
       },

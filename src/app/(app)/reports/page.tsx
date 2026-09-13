@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { useUserRole } from "@/lib/useUserRole";
 import { formatXAF } from "@/lib/currency";
+import { SkeletonPanel, SkeletonStatCards } from "@/components/common/Skeleton";
 
 const PRODUCT_CATEGORIES = [
   "pantalon", "chemise", "tricot", "culotte", "bracelet",
@@ -50,7 +51,7 @@ interface ReportData {
   ventes: {
     nombreVentes: number;
     chiffreAffaires: number;
-    meilleuresVentes: { nom: string; quantite: number }[];
+    meilleuresVentes: { nom: string; quantite: number; ca?: number }[];
     parPeriode: { date: string; ca: number }[];
     encaissements: number;
     resteAPayer: number;
@@ -83,8 +84,8 @@ export default function ReportsPage() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const session = localStorage.getItem("user");
+    if (!session) {
       router.push("/login");
       return;
     }
@@ -118,8 +119,10 @@ export default function ReportsPage() {
 
   if (!stats) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <SkeletonPanel lines={2} />
+        <SkeletonStatCards count={3} />
+        <SkeletonPanel lines={4} />
       </div>
     );
   }
@@ -312,7 +315,12 @@ export default function ReportsPage() {
               {stats.ventes.meilleuresVentes.map((v) => (
                 <li key={v.nom} className="flex justify-between py-2 text-sm">
                   <span className="text-ink-soft">{v.nom}</span>
-                  <span className="font-semibold text-ink">{v.quantite} vendu(s)</span>
+                  <span className="text-right">
+                    <span className="font-semibold text-ink">{v.quantite} vendu(s)</span>
+                    {canSeeFinancials && v.ca != null && (
+                      <span className="block text-xs text-ink-soft/60">{montant(v.ca)}</span>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>

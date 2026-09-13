@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
 import Look from '@/lib/models/Look';
 import LookItem from '@/lib/models/LookItem';
-import { canWrite, getRole } from '@/lib/authz';
+import { canWrite, isAdmin, canSeeFinancials, getRole } from '@/lib/authz';
 import { buildPriceIndex, resolvePrice } from '@/lib/priceResolver';
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest, { params }: Params) {
   try {
+    const showFinancials = canSeeFinancials(getRole(request));
     await dbConnect();
     const { id } = await params;
 
@@ -25,7 +26,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const priceIndex = await buildPriceIndex(productIds);
     const itemsWithPrix = (items as any[]).map((i) => ({
       ...i,
-      prix: i.product_id ? resolvePrice(priceIndex, i.product_id._id.toString()) : null,
+      prix: showFinancials && i.product_id ? resolvePrice(priceIndex, i.product_id._id.toString()) : null,
     }));
 
     return NextResponse.json({ success: true, data: { ...look, items: itemsWithPrix } });
@@ -58,7 +59,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
-    if (!canWrite(getRole(request))) {
+    if (!isAdmin(getRole(request))) {
       return NextResponse.json({ success: false, error: 'Accès refusé' }, { status: 403 });
     }
 

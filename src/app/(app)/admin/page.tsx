@@ -24,10 +24,10 @@ export default function AdminPage() {
   const [user, setUser] = useState<StoredUser | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const session = localStorage.getItem("user");
     const userData = localStorage.getItem("user");
 
-    if (!token || !userData) {
+    if (!session || !userData) {
       router.push("/login");
       return;
     }

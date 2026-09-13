@@ -9,6 +9,8 @@ import EditableSelect from "@/components/common/EditableSelect";
 import EditableMultiSelect from "@/components/common/EditableMultiSelect";
 import PackagingSelect from "@/components/common/PackagingSelect";
 import { formatXAF } from "@/lib/currency";
+import { SkeletonBlock, SkeletonPanel } from "@/components/common/Skeleton";
+import { productStatutClasses } from "@/lib/statusColors";
 
 const CATEGORIES = [
   "pantalon", "chemise", "tricot", "culotte", "bracelet",
@@ -137,8 +139,8 @@ function ProductDetailPageInner() {
   }, [id]);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    const session = localStorage.getItem("user");
+    if (!session) {
       router.push("/login");
       return;
     }
@@ -147,8 +149,9 @@ function ProductDetailPageInner() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <SkeletonBlock className="h-8 w-64" />
+        <SkeletonPanel lines={6} />
       </div>
     );
   }
@@ -331,7 +334,6 @@ function InfosTab({
     const supplierName = suppliers.find((s) => s._id === product.fournisseur_id)?.nom;
     const rows: [string, string][] = [
       ["Nom", product.nom],
-      ["Statut", product.statut],
       ["Catégorie", product.categorie],
       ["Origine", product.origine === "import_chine" ? "Import Chine" : "Local"],
       ...(product.origine === "import_chine" ? ([["Poids", `${product.poids_kg ?? 0} kg`]] as [string, string][]) : []),
@@ -342,6 +344,12 @@ function InfosTab({
     return (
       <div className="bg-white rounded-lg shadow p-6">
         <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-ink-soft/60">Statut</p>
+            <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-medium capitalize ${productStatutClasses(product.statut)}`}>
+              {product.statut}
+            </span>
+          </div>
           {rows.map(([label, value]) => (
             <div key={label}>
               <p className="text-xs uppercase tracking-wide text-ink-soft/60">{label}</p>
@@ -953,7 +961,11 @@ function ImagesTab({
   };
 
   const handleDelete = async (imageId: string) => {
-    await fetch(`/api/products/${productId}/images?imageId=${imageId}`, { method: "DELETE" });
+    const res = await fetch(`/api/products/${productId}/images?imageId=${imageId}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Échec de la suppression");
+      return;
+    }
     toast.success("Image supprimée");
     onSaved();
   };

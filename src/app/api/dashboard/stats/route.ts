@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Product from '@/lib/models/Product';
 import ProductPricing from '@/lib/models/ProductPricing';
 import Supplier from '@/lib/models/Supplier';
@@ -7,9 +7,11 @@ import ProductImage from '@/lib/models/ProductImage';
 import Payment from '@/lib/models/Payment';
 import { dbConnect } from '@/lib/db/connection';
 import { buildPriceIndex, resolvePrice } from '@/lib/priceResolver';
+import { canSeeFinancials, getRole } from '@/lib/authz';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const showFinancials = canSeeFinancials(getRole(request));
     await dbConnect();
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -116,7 +118,7 @@ export async function GET() {
     // avec repli sur le prix actuel résolu pour les entrées créées avant
     // l'ajout de ce champ.
     let chiffreAffaires30j = 0;
-    const ventesParProduit = new Map<string, { nom: string; quantite: number }>();
+    const ventesParProduit = new Map<string, { productId: string; nom: string; quantite: number; ca: number }>();
     const parJour = new Map<string, number>();
     for (const sale of recentSales as any[]) {
       const product = sale.product_id;
@@ -134,13 +136,19 @@ export async function GET() {
       const jour = new Date(sale.date_maj).toISOString().slice(0, 10);
       parJour.set(jour, (parJour.get(jour) ?? 0) + montantVente);
 
-      const bucket = ventesParProduit.get(product._id.toString()) || { nom: product.nom, quantite: 0 };
+      const productId = product._id.toString();
+      const bucket = ventesParProduit.get(productId) || { productId, nom: product.nom, quantite: 0, ca: 0 };
       bucket.quantite += sale.quantite;
-      ventesParProduit.set(product._id.toString(), bucket);
+      bucket.ca += montantVente;
+      ventesParProduit.set(productId, bucket);
     }
+    // Classé par chiffre d'affaires généré, pas par quantité : un article
+    // vendu peu de fois mais cher pèse plus qu'un article vendu souvent mais
+    // peu cher — c'est ce qui compte pour décider quoi mettre en avant/réassortir.
     const meilleuresVentes = Array.from(ventesParProduit.values())
-      .sort((a, b) => b.quantite - a.quantite)
-      .slice(0, 5);
+      .sort((a, b) => b.ca - a.ca)
+      .slice(0, 5)
+      .map((v) => ({ ...v, ca: Math.round(v.ca * 100) / 100 }));
     const ventesParJour = Array.from(parJour.entries())
       .map(([date, ca]) => ({ date, ca: Math.round(ca * 100) / 100 }))
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -169,6 +177,17 @@ export async function GET() {
           message: `"${p.nom}" n'a aucune couleur ni taille renseignée`,
           lien: `/products/${id}`,
           severite: 'critique',
+        });
+      } else if (p.statut === 'disponible' && (p.couleurs_disponibles?.length === 1 || p.tailles_disponibles?.length === 1)) {
+        // Pas de quantité chiffrée à surveiller (choix assumé), mais un
+        // produit qui n'a plus qu'une seule couleur ou taille cochée est un
+        // signal simple et fiable qu'il touche à sa fin — à réapprovisionner
+        // ou à décocher bientôt.
+        pointsAttention.push({
+          type: 'stock_faible',
+          message: `"${p.nom}" n'a plus qu'une seule ${p.couleurs_disponibles?.length === 1 ? 'couleur' : 'taille'} disponible — pense à réapprovisionner`,
+          lien: `/products/${id}`,
+          severite: 'attention',
         });
       }
       if (!imageCountMap.has(id)) {
@@ -207,24 +226,28 @@ export async function GET() {
     }
     const encaissements30j = (encaissements30jAgg as any[])[0]?.total ?? 0;
 
+    // lecture_seule ne doit voir aucun montant financier — appliqué ici,
+    // côté serveur, pas seulement caché dans l'UI (voir src/lib/authz.ts).
     return NextResponse.json({
       success: true,
       data: {
         totalProduits,
         produitsDisponibles,
-        margeMoyenneParCategorie,
+        margeMoyenneParCategorie: showFinancials ? margeMoyenneParCategorie : [],
         produitsEnTransit,
         repartitionFournisseurs,
         repartitionOrigine,
         produitsParStatut,
         ventes30j: {
           nombreVentes: (recentSales as any[]).length,
-          chiffreAffaires: Math.round(chiffreAffaires30j * 100) / 100,
-          meilleuresVentes,
-          parJour: ventesParJour,
-          previsionCA30jSuivants: previsionCA30j,
-          encaissements30j: Math.round(encaissements30j * 100) / 100,
-          resteAPayer: Math.round(resteAPayer * 100) / 100,
+          chiffreAffaires: showFinancials ? Math.round(chiffreAffaires30j * 100) / 100 : null,
+          meilleuresVentes: showFinancials
+            ? meilleuresVentes
+            : meilleuresVentes.map((v) => ({ productId: v.productId, nom: v.nom, quantite: v.quantite })),
+          parJour: showFinancials ? ventesParJour : [],
+          previsionCA30jSuivants: showFinancials ? previsionCA30j : null,
+          encaissements30j: showFinancials ? Math.round(encaissements30j * 100) / 100 : null,
+          resteAPayer: showFinancials ? Math.round(resteAPayer * 100) / 100 : null,
         },
         pointsAttention,
       },

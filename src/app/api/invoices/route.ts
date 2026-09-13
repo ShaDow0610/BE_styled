@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import { dbConnect } from '@/lib/db/connection';
 import Invoice from '@/lib/models/Invoice';
 import OrderTracking from '@/lib/models/OrderTracking';
@@ -95,23 +96,52 @@ export async function POST(request: NextRequest) {
     }));
     const montantTotal = Math.round(lignes.reduce((sum, l) => sum + l.montant_total, 0) * 100) / 100;
 
-    const numeroFacture = await generateInvoiceNumber();
-
-    const invoice = await Invoice.create({
-      numero_facture: numeroFacture,
-      client_nom: clientNom,
-      client_telephone: body.client_telephone || '',
-      client_adresse: body.client_adresse || '',
-      date_facture: body.date_facture ? new Date(body.date_facture) : new Date(),
-      lignes,
-      order_tracking_ids: orderTrackingIds,
-      montant_total: montantTotal,
-    });
-
-    await OrderTracking.updateMany(
-      { _id: { $in: orderTrackingIds } },
-      { $set: { facture_id: invoice._id } }
+    // Réserve atomiquement les commandes avant de créer la facture : si une
+    // autre requête a facturé une de ces lignes entre notre vérification
+    // ci-dessus et maintenant, `facture_id: null` ne matche plus pour elle et
+    // le compte de lignes modifiées sera inférieur à ce qu'on demande — on
+    // annule alors la réservation partielle plutôt que de risquer une
+    // double-facturation.
+    const invoiceId = new mongoose.Types.ObjectId();
+    const claim = await OrderTracking.updateMany(
+      { _id: { $in: orderTrackingIds }, facture_id: null },
+      { $set: { facture_id: invoiceId } }
     );
+
+    if (claim.modifiedCount !== orderTrackingIds.length) {
+      await OrderTracking.updateMany(
+        { _id: { $in: orderTrackingIds }, facture_id: invoiceId },
+        { $set: { facture_id: null } }
+      );
+      return NextResponse.json(
+        { success: false, error: 'Une des commandes vient d\'être facturée ailleurs — réessaie.' },
+        { status: 409 }
+      );
+    }
+
+    let invoice;
+    try {
+      const numeroFacture = await generateInvoiceNumber();
+      invoice = await Invoice.create({
+        _id: invoiceId,
+        numero_facture: numeroFacture,
+        client_nom: clientNom,
+        client_telephone: body.client_telephone || '',
+        client_adresse: body.client_adresse || '',
+        date_facture: body.date_facture ? new Date(body.date_facture) : new Date(),
+        lignes,
+        order_tracking_ids: orderTrackingIds,
+        montant_total: montantTotal,
+      });
+    } catch (creationError) {
+      // La facture n'a pas pu être créée — libère les commandes réservées
+      // pour ne pas les laisser "facturées" vers une facture inexistante.
+      await OrderTracking.updateMany(
+        { _id: { $in: orderTrackingIds }, facture_id: invoiceId },
+        { $set: { facture_id: null } }
+      );
+      throw creationError;
+    }
 
     return NextResponse.json({ success: true, data: invoice }, { status: 201 });
   } catch (error) {

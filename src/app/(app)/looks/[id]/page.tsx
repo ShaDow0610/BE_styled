@@ -4,6 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatXAF } from "@/lib/currency";
+import { useUserRole } from "@/lib/useUserRole";
+import { useToast } from "@/components/common/ToastProvider";
+import { SkeletonPanel } from "@/components/common/Skeleton";
 
 interface ProductOption {
   _id: string;
@@ -30,15 +33,17 @@ interface Look {
 export default function LookDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const toast = useToast();
   const id = params.id as string;
+  const { canWrite, isAdmin } = useUserRole();
 
   const [look, setLook] = useState<Look | null>(null);
-  const [canWrite, setCanWrite] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("");
   const [error, setError] = useState("");
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -75,21 +80,32 @@ export default function LookDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userData = localStorage.getItem("user");
-    if (!token) {
+    const session = localStorage.getItem("user");
+    if (!session) {
       router.push("/login");
       return;
-    }
-    if (userData) {
-      const role = JSON.parse(userData).role;
-      setCanWrite(role === "admin" || role === "gestion_stock");
     }
     load();
     fetch("/api/products?limit=100")
       .then((r) => r.json())
       .then((d) => setProducts(d.data.map((p: { _id: string; nom: string }) => ({ _id: p._id, nom: p.nom }))));
   }, [load, router]);
+
+  const handleDeleteLook = async () => {
+    if (!look) return;
+    if (!window.confirm(`Supprimer définitivement le look "${look.nom}" ? Cette action est irréversible.`)) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/looks/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Échec de la suppression");
+      toast.success("Look supprimé");
+      router.push("/looks");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      toast.error(message);
+      setIsDeleting(false);
+    }
+  };
 
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,8 +135,8 @@ export default function LookDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ink"></div>
+      <div className="container mx-auto px-4 py-8">
+        <SkeletonPanel lines={5} />
       </div>
     );
   }
@@ -209,6 +225,19 @@ export default function LookDetailPage() {
           </ul>
         )}
       </div>
+
+      {isAdmin && (
+        <div className="bg-white rounded-lg shadow p-6 mt-6">
+          <p className="text-sm font-medium text-red-600 mb-2">Zone dangereuse</p>
+          <button
+            type="button"
+            onClick={handleDeleteLook}
+            disabled={isDeleting}
+            className="px-6 py-2 border border-red-600 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50">
+            {isDeleting ? "Suppression..." : "Supprimer le look"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

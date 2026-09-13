@@ -3,12 +3,13 @@ import { dbConnect } from '@/lib/db/connection';
 import Product from '@/lib/models/Product';
 import ProductPricing from '@/lib/models/ProductPricing';
 import ProductImage from '@/lib/models/ProductImage';
-import { canWrite, getRole } from '@/lib/authz';
+import { canWrite, canSeeFinancials, getRole } from '@/lib/authz';
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest, { params }: Params) {
   try {
+    const showFinancials = canSeeFinancials(getRole(request));
     await dbConnect();
     const { id } = await params;
 
@@ -24,7 +25,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
     return NextResponse.json({
       success: true,
-      data: { ...product, pricingHistory, images },
+      data: { ...product, pricingHistory: showFinancials ? pricingHistory : [], images },
     });
   } catch (error) {
     console.error('Error fetching product:', error);
