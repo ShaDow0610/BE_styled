@@ -111,27 +111,35 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onChanged })
 
   return (
     <>
-      {/* Mobile : une carte par produit, plus confortable qu'un tableau qui défile horizontalement. */}
-      <div className="sm:hidden space-y-3">
+      {/* Mobile : une carte par produit, compacte — la référence (utile
+          surtout en back-office) n'y figure pas, seulement l'essentiel. */}
+      <div className="sm:hidden space-y-2">
         {products.map((product) => (
-          <div key={product._id} className="bg-white rounded-lg shadow p-4">
-            <div className="flex justify-between items-start gap-2 mb-2">
+          <div key={product._id} className="bg-white rounded-lg shadow p-3">
+            <div className="flex justify-between items-start gap-2">
               <div className="min-w-0">
                 <Link href={`/products/${product._id}`} className="font-medium text-ink hover:underline block truncate">
                   {product.nom}
                 </Link>
-                <p className="text-xs text-ink-soft/70">{product.reference} · <span className="capitalize">{product.categorie}</span></p>
+                <p className="text-xs text-ink-soft/70 capitalize">{product.categorie}</p>
               </div>
-              <StatutBadge statut={product.statut} />
+              <div className="flex items-center gap-2 shrink-0">
+                {canSeeFinancials && product.prix_actuel != null && (
+                  <span className="text-sm font-semibold text-ink whitespace-nowrap">{formatXAF(product.prix_actuel)}</span>
+                )}
+                <StatutBadge statut={product.statut} />
+              </div>
             </div>
-            <div className="text-xs text-ink-soft space-y-0.5 mb-3">
-              <p>Couleurs : {product.couleurs_disponibles?.length ? product.couleurs_disponibles.join(", ") : "—"}</p>
-              <p>Tailles : {product.tailles_disponibles?.length ? product.tailles_disponibles.join(", ") : "—"}</p>
-              {canSeeFinancials && (
-                <p className="text-ink font-semibold">{product.prix_actuel != null ? formatXAF(product.prix_actuel) : "—"}</p>
-              )}
+            {(product.couleurs_disponibles?.length || product.tailles_disponibles?.length) ? (
+              <p className="text-xs text-ink-soft mt-1.5">
+                {product.couleurs_disponibles?.length ? product.couleurs_disponibles.join(", ") : null}
+                {product.couleurs_disponibles?.length && product.tailles_disponibles?.length ? " · " : null}
+                {product.tailles_disponibles?.length ? product.tailles_disponibles.join(", ") : null}
+              </p>
+            ) : null}
+            <div className="mt-2">
+              <RowActions product={product} />
             </div>
-            <RowActions product={product} />
           </div>
         ))}
       </div>
