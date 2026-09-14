@@ -4,6 +4,7 @@ import Product from "@/lib/models/Product";
 import ProductImage from "@/lib/models/ProductImage";
 import Look from "@/lib/models/Look";
 import LookItem from "@/lib/models/LookItem";
+import OrderTracking from "@/lib/models/OrderTracking";
 import { buildPriceIndex, resolvePrice } from "@/lib/priceResolver";
 
 export interface PublicProduct {
@@ -118,6 +119,73 @@ export async function getPublicProduct(id: string): Promise<PublicProductDetail 
     couleurs_disponibles,
     tailles_disponibles,
   };
+}
+
+/**
+ * Meilleures ventes pour la vitrine publique : classées par quantité
+ * vendue uniquement (jamais par CA/montant — donnée financière interne,
+ * cf. canSeeFinancials côté back-office). Ne remonte que des produits
+ * toujours visibles sur la vitrine (disponible + couleur/taille renseignée).
+ */
+export async function getPublicBestSellers(limit = 8): Promise<PublicProduct[]> {
+  await dbConnect();
+
+  const ranking = await OrderTracking.aggregate([
+    { $match: { type: "commande_client" } },
+    { $group: { _id: "$product_id", quantite: { $sum: "$quantite" } } },
+    { $sort: { quantite: -1 } },
+    { $limit: limit * 3 },
+  ]);
+
+  if (ranking.length === 0) return [];
+
+  const orderedIds = ranking.map((r) => r._id).filter(Boolean);
+
+  const products = await Product.find({
+    _id: { $in: orderedIds },
+    statut: "disponible",
+  }).lean();
+
+  const productIds = products.map((p) => p._id);
+
+  const [priceIndex, images] = await Promise.all([
+    buildPriceIndex(productIds),
+    ProductImage.find({ product_id: { $in: productIds } }).sort({ ordre_affichage: 1 }).lean(),
+  ]);
+
+  const imageByProduct = new Map<string, string>();
+  for (const img of images) {
+    const key = img.product_id.toString();
+    if (!imageByProduct.has(key)) imageByProduct.set(key, img.url);
+  }
+
+  const byId = new Map(products.map((p) => [p._id.toString(), p]));
+
+  const result: PublicProduct[] = [];
+  for (const rankedId of orderedIds) {
+    const p = byId.get(rankedId.toString());
+    if (!p) continue;
+    const id = p._id.toString();
+    const couleurs_disponibles = p.couleurs_disponibles || [];
+    const tailles_disponibles = p.tailles_disponibles || [];
+    if (couleurs_disponibles.length === 0 && tailles_disponibles.length === 0) continue;
+
+    result.push({
+      _id: id,
+      nom: p.nom,
+      reference: p.reference,
+      categorie: p.categorie,
+      description: p.description,
+      matiere: p.matiere || "",
+      prix: resolvePrice(priceIndex, id),
+      image: imageByProduct.get(id) ?? null,
+      couleurs_disponibles,
+      tailles_disponibles,
+    });
+    if (result.length >= limit) break;
+  }
+
+  return result;
 }
 
 export interface PublicLook {

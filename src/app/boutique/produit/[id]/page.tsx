@@ -1,9 +1,30 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublicProduct } from "@/lib/publicCatalog";
 import WhatsAppOrderButton from "./WhatsAppOrderButton";
 import ProductGallery from "./ProductGallery";
 
 type Params = Promise<{ id: string }>;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { id } = await params;
+  const product = await getPublicProduct(id);
+
+  if (!product) return {};
+
+  const description = product.description || `${product.nom} — disponible chez Be Styled.`;
+
+  return {
+    title: `${product.nom} — Be Styled`,
+    description,
+    openGraph: {
+      title: product.nom,
+      description,
+      images: product.image ? [product.image] : undefined,
+      type: "website",
+    },
+  };
+}
 
 export default async function ProductDetailPage({ params }: { params: Params }) {
   const { id } = await params;

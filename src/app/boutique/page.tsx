@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faGem, faBolt } from "@fortawesome/free-solid-svg-icons";
+import { faGem, faBolt, faFire } from "@fortawesome/free-solid-svg-icons";
 import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
 import PromoBanner from "./components/PromoBanner";
 import Price from "./components/Price";
 import AnimatedHeroLogo from "./components/AnimatedHeroLogo";
-import { getPublicProducts, getPublicLooks } from "@/lib/publicCatalog";
+import ColorSwatches from "./components/ColorSwatches";
+import { getPublicProducts, getPublicLooks, getPublicBestSellers } from "@/lib/publicCatalog";
 import { buildWhatsAppLink, buildWhatsAppLookLink } from "@/lib/whatsapp";
 
 // Catalogue/stock changent en continu depuis le back-office — pas de cache statique.
@@ -18,9 +19,10 @@ const REASSURANCE = [
 ];
 
 export default async function BoutiqueHomePage() {
-  const [nouveautes, looks] = await Promise.all([
+  const [nouveautes, looks, meilleuresVentes] = await Promise.all([
     getPublicProducts({ limit: 8 }),
     getPublicLooks(4),
+    getPublicBestSellers(8),
   ]);
 
   const heroVideo = process.env.NEXT_PUBLIC_HERO_VIDEO_URL;
@@ -71,6 +73,52 @@ export default async function BoutiqueHomePage() {
           ))}
         </div>
       </div>
+
+      {meilleuresVentes.length > 0 && (
+        <div className="container mx-auto px-4 py-16">
+          <h2 className="font-serif text-3xl text-ink mb-8 flex items-center gap-3">
+            <FontAwesomeIcon icon={faFire} className="w-6 h-6 text-ink-soft/60" />
+            Meilleures ventes
+          </h2>
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {meilleuresVentes.map((product) => (
+              <div
+                key={product._id}
+                className="bg-white rounded-lg shadow hover:shadow-xl transition-shadow overflow-hidden group">
+                <Link href={`/boutique/produit/${product._id}`} className="block relative">
+                  {product.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={product.image}
+                      alt={product.nom}
+                      className="w-full aspect-[3/4] object-cover bg-ivory-soft group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full aspect-[3/4] bg-ivory-soft" />
+                  )}
+                  <div className="p-4">
+                    <h3 className="font-semibold text-ink">{product.nom}</h3>
+                    {product.prix != null && (
+                      <Price xaf={product.prix} className="block text-ink font-bold mt-1" />
+                    )}
+                    <ColorSwatches couleurs={product.couleurs_disponibles} />
+                  </div>
+                </Link>
+                <div className="px-4 pb-4">
+                  <a
+                    href={buildWhatsAppLink({ nom: product.nom, reference: product.reference })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-2 border border-ink text-ink rounded-lg text-sm font-medium hover:bg-ink hover:text-ivory transition-colors">
+                    <FontAwesomeIcon icon={faWhatsapp} className="w-4 h-4" />
+                    Commander
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {looks.length > 0 && (
         <div className="container mx-auto px-4 py-16">
@@ -141,6 +189,7 @@ export default async function BoutiqueHomePage() {
                     {product.prix != null && (
                       <Price xaf={product.prix} className="block text-ink font-bold mt-1" />
                     )}
+                    <ColorSwatches couleurs={product.couleurs_disponibles} />
                   </div>
                 </Link>
                 <div className="px-4 pb-4">

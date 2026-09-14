@@ -26,11 +26,20 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
-/* Loader de marque — logo qui "respire" au lieu d'un spinner générique. */
-@keyframes logo-pulse {
-  0%, 100% { transform: scale(0.9); opacity: 0.55; }
-  50% { transform: scale(1.05); opacity: 1; }
+/* Loader de marque — logo qui "respire", entouré d'un anneau qui tourne
+   doucement, au lieu d'un spinner générique. Le logo reste pleinement
+   visible (pas de baisse d'opacité) : seul l'anneau porte le mouvement
+   de chargement, le logo porte l'identité de marque. */
+@keyframes logo-breathe {
+  0%, 100% { transform: scale(0.94); }
+  50% { transform: scale(1.04); }
+}
+@keyframes ring-spin {
+  to { transform: rotate(360deg); }
 }
 .animate-logo-pulse {
-  animation: logo-pulse 1.5s ease-in-out infinite;
+  animation: logo-breathe 1.8s ease-in-out infinite;
+}
+.animate-ring-spin {
+  animation: ring-spin 1.4s linear infinite;
 }

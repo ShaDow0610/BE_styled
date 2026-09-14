@@ -1,5 +1,6 @@
 import BoutiqueHeader from "./components/BoutiqueHeader";
 import BoutiqueFooter from "./components/BoutiqueFooter";
+import FloatingWhatsApp from "./components/FloatingWhatsApp";
 import { CurrencyProvider } from "./components/CurrencyProvider";
 import { dbConnect } from "@/lib/db/connection";
 import ExchangeRate from "@/lib/models/ExchangeRate";
@@ -26,6 +27,7 @@ export default async function BoutiqueLayout({ children }: { children: React.Rea
         <BoutiqueHeader />
         <main className="flex-1">{children}</main>
         <BoutiqueFooter />
+        <FloatingWhatsApp />
       </div>
     </CurrencyProvider>
   );

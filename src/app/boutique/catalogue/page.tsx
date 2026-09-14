@@ -17,6 +17,7 @@ import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
 import { getPublicProducts } from "@/lib/publicCatalog";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 import Price from "../components/Price";
+import ColorSwatches from "../components/ColorSwatches";
 
 const CATEGORIES: { key: string; icon: IconDefinition }[] = [
   { key: "pantalon", icon: faSocks },
@@ -127,6 +128,7 @@ export default async function CataloguePage({ searchParams }: { searchParams: Se
                   {product.prix != null && (
                     <Price xaf={product.prix} className="block text-ink font-bold mt-2" />
                   )}
+                  <ColorSwatches couleurs={product.couleurs_disponibles} />
                 </div>
               </Link>
               <div className="px-4 pb-4">

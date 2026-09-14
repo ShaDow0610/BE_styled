@@ -1,9 +1,32 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublicLook } from "@/lib/publicCatalog";
 import { buildWhatsAppLookLink } from "@/lib/whatsapp";
 import Price from "../../components/Price";
 
-export default async function LookDetailPage({ params }: { params: Promise<{ id: string }> }) {
+type Params = Promise<{ id: string }>;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { id } = await params;
+  const look = await getPublicLook(id);
+
+  if (!look) return {};
+
+  const description = `Le look "${look.nom}" — ${look.item_count} article${look.item_count > 1 ? "s" : ""}, disponible chez Be Styled.`;
+
+  return {
+    title: `${look.nom} — Be Styled`,
+    description,
+    openGraph: {
+      title: look.nom,
+      description,
+      images: look.photo_couverture ? [look.photo_couverture] : undefined,
+      type: "website",
+    },
+  };
+}
+
+export default async function LookDetailPage({ params }: { params: Params }) {
   const { id } = await params;
   const look = await getPublicLook(id);
 
