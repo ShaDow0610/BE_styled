@@ -4,6 +4,7 @@ import { faGem, faBolt } from "@fortawesome/free-solid-svg-icons";
 import { faWhatsapp } from "@fortawesome/free-brands-svg-icons";
 import PromoBanner from "./components/PromoBanner";
 import Price from "./components/Price";
+import AnimatedHeroLogo from "./components/AnimatedHeroLogo";
 import { getPublicProducts, getPublicLooks } from "@/lib/publicCatalog";
 import { buildWhatsAppLink, buildWhatsAppLookLink } from "@/lib/whatsapp";
 
@@ -47,11 +48,9 @@ export default async function BoutiqueHomePage() {
             className={`text-xs tracking-[0.3em] uppercase mb-4 ${heroVideo ? "text-silver-soft" : "text-ink-soft/60"}`}>
             Collection actuelle
           </p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <AnimatedHeroLogo
             src={heroVideo ? "/brand/logo-full-white.png" : "/brand/logo-full-black.png"}
             alt="Be Styled — Le style, votre signature"
-            className="mx-auto h-40 md:h-56 w-auto mb-10"
           />
           <Link
             href="/boutique/catalogue"
@@ -76,7 +75,7 @@ export default async function BoutiqueHomePage() {
       {looks.length > 0 && (
         <div className="container mx-auto px-4 py-16">
           <h2 className="font-serif text-3xl text-ink mb-8">Nos looks</h2>
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
             {looks.map((look) => (
               <div
                 key={look._id}
@@ -87,10 +86,10 @@ export default async function BoutiqueHomePage() {
                     <img
                       src={look.photo_couverture}
                       alt={look.nom}
-                      className="w-full h-48 object-cover bg-ivory-soft group-hover:scale-105 transition-transform duration-300"
+                      className="w-full aspect-[3/4] object-cover bg-ivory-soft group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
-                    <div className="w-full h-48 bg-ivory-soft" />
+                    <div className="w-full aspect-[3/4] bg-ivory-soft" />
                   )}
                   <div className="p-4">
                     <h3 className="font-semibold text-ink">{look.nom}</h3>
@@ -116,7 +115,7 @@ export default async function BoutiqueHomePage() {
       {nouveautes.length > 0 && (
         <div className="container mx-auto px-4 py-16">
           <h2 className="font-serif text-3xl text-ink mb-8">Nouveautés</h2>
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
             {nouveautes.map((product, index) => (
               <div
                 key={product._id}
@@ -132,10 +131,10 @@ export default async function BoutiqueHomePage() {
                     <img
                       src={product.image}
                       alt={product.nom}
-                      className="w-full h-48 object-cover bg-ivory-soft group-hover:scale-105 transition-transform duration-300"
+                      className="w-full aspect-[3/4] object-cover bg-ivory-soft group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
-                    <div className="w-full h-48 bg-ivory-soft" />
+                    <div className="w-full aspect-[3/4] bg-ivory-soft" />
                   )}
                   <div className="p-4">
                     <h3 className="font-semibold text-ink">{product.nom}</h3>

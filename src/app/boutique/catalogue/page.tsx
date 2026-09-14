@@ -105,7 +105,7 @@ export default async function CataloguePage({ searchParams }: { searchParams: Se
           <p className="text-ink-soft/70">Aucun produit ne correspond à ces critères.</p>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
           {products.map((product) => (
             <div
               key={product._id}
@@ -116,10 +116,10 @@ export default async function CataloguePage({ searchParams }: { searchParams: Se
                   <img
                     src={product.image}
                     alt={product.nom}
-                    className="w-full h-48 object-cover bg-ivory-soft group-hover:scale-105 transition-transform duration-300"
+                    className="w-full aspect-[3/4] object-cover bg-ivory-soft group-hover:scale-105 transition-transform duration-300"
                   />
                 ) : (
-                  <div className="w-full h-48 bg-ivory-soft" />
+                  <div className="w-full aspect-[3/4] bg-ivory-soft" />
                 )}
                 <div className="p-4">
                   <h3 className="font-semibold text-ink">{product.nom}</h3>

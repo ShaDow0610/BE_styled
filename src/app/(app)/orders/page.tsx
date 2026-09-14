@@ -461,6 +461,10 @@ function NouvelleVenteModal({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [isPastSale, setIsPastSale] = useState(false);
+  const [dateVente, setDateVente] = useState(new Date().toISOString().slice(0, 10));
+  const [montantEncaisse, setMontantEncaisse] = useState("");
+  const [modePaiement, setModePaiement] = useState("especes");
 
   // Les articles les plus vendus récemment remontent en premier — pas
   // besoin de chercher/scroller pour ceux vendus tous les jours.
@@ -495,6 +499,10 @@ function NouvelleVenteModal({
     setQuantite("1");
     setError("");
     setCreatedOrderId(null);
+    setIsPastSale(false);
+    setDateVente(new Date().toISOString().slice(0, 10));
+    setMontantEncaisse("");
+    setModePaiement("especes");
   };
 
   const handleSubmit = async () => {
@@ -512,12 +520,26 @@ function NouvelleVenteModal({
           type: "commande_client",
           quantite: Number(quantite) || 1,
           prix_unitaire: Number(prix) || undefined,
+          // Une vente passée est directement marquée livrée, à la vraie
+          // date de la vente — sinon elle fausserait les statistiques du
+          // jour de saisie au lieu du jour réel de la vente.
+          ...(isPastSale ? { statut: "livre_client", date_maj: dateVente } : {}),
         }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Erreur lors de l'enregistrement");
       }
+
+      const encaisse = Number(montantEncaisse);
+      if (isPastSale && encaisse > 0) {
+        await fetch(`/api/orders/${data.data._id}/payments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ montant: encaisse, mode_paiement: modePaiement, date_paiement: dateVente }),
+        });
+      }
+
       toast.success("Vente enregistrée");
       setCreatedOrderId(data.data._id);
       onCreated();
@@ -657,6 +679,52 @@ function NouvelleVenteModal({
                     className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
                   />
                 </div>
+
+                <div className="sm:col-span-2 pt-2 border-t border-silver-soft">
+                  <label className="flex items-center gap-2 text-sm text-ink-soft">
+                    <input type="checkbox" checked={isPastSale} onChange={(e) => setIsPastSale(e.target.checked)} />
+                    C&apos;est une vente déjà effectuée (à enregistrer rétroactivement)
+                  </label>
+                </div>
+
+                {isPastSale && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-soft mb-2">Date de la vente</label>
+                      <input
+                        type="date" max={new Date().toISOString().slice(0, 10)}
+                        value={dateVente}
+                        onChange={(e) => setDateVente(e.target.value)}
+                        className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-ink-soft mb-2">Déjà encaissé (optionnel)</label>
+                      <input
+                        type="number" step="0.01" min="0"
+                        value={montantEncaisse}
+                        onChange={(e) => setMontantEncaisse(e.target.value)}
+                        placeholder="Laisser vide si rien reçu"
+                        className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                      />
+                    </div>
+                    {Number(montantEncaisse) > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-ink-soft mb-2">Mode de paiement</label>
+                        <select
+                          value={modePaiement}
+                          onChange={(e) => setModePaiement(e.target.value)}
+                          className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
+                          <option value="especes">Espèces</option>
+                          <option value="mobile_money">Mobile money</option>
+                          <option value="virement">Virement</option>
+                          <option value="autre">Autre</option>
+                        </select>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 {error && <p className="sm:col-span-2 text-sm text-red-600">{error}</p>}
                 <div className="sm:col-span-2 flex gap-3">
                   <button

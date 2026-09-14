@@ -42,11 +42,23 @@ export async function POST(request: NextRequest, { params }: Params) {
       return NextResponse.json({ success: false, error: 'Commande introuvable' }, { status: 404 });
     }
 
+    // Permet de dater un encaissement dans le passé (paiement reçu au
+    // moment d'une vente rétroactive) plutôt que de toujours prendre "maintenant".
+    let date_paiement = new Date();
+    if (body.date_paiement) {
+      const parsed = new Date(body.date_paiement);
+      if (Number.isNaN(parsed.getTime()) || parsed.getTime() > Date.now()) {
+        return NextResponse.json({ success: false, error: 'Date invalide' }, { status: 400 });
+      }
+      date_paiement = parsed;
+    }
+
     const payment = await Payment.create({
       order_tracking_id: id,
       montant,
       mode_paiement: body.mode_paiement || 'especes',
       note: body.note || undefined,
+      date_paiement,
     });
 
     return NextResponse.json({ success: true, data: payment }, { status: 201 });

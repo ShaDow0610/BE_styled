@@ -25,3 +25,12 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Loader de marque — logo qui "respire" au lieu d'un spinner générique. */
+@keyframes logo-pulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.55; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+.animate-logo-pulse {
+  animation: logo-pulse 1.5s ease-in-out infinite;
+}

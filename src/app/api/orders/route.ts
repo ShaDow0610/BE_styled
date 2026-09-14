@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db/connection';
-import OrderTracking from '@/lib/models/OrderTracking';
+import OrderTracking, { ORDER_STATUSES } from '@/lib/models/OrderTracking';
 import Payment from '@/lib/models/Payment';
 import { buildPriceIndex, resolvePrice } from '@/lib/priceResolver';
 import { canWrite, canSeeFinancials, getRole } from '@/lib/authz';
@@ -87,16 +87,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Permet d'enregistrer une vente déjà effectuée (avant que l'appli ne
+    // suive les commandes) : statut et date imposés au lieu des valeurs par
+    // défaut, pour que la vente apparaisse à la bonne période dans les
+    // statistiques plutôt qu'à la date de saisie.
+    const statut = ORDER_STATUSES.includes(body.statut) ? body.statut : 'commande';
+    const date_maj = body.date_maj ? new Date(body.date_maj) : new Date();
+    if (Number.isNaN(date_maj.getTime()) || date_maj.getTime() > Date.now()) {
+      return NextResponse.json({ success: false, error: 'Date invalide' }, { status: 400 });
+    }
+
     const order = await OrderTracking.create({
       product_id: body.product_id,
       couleur: body.couleur || '',
       taille: body.taille || '',
       type: body.type,
-      statut: 'commande',
+      statut,
       quantite,
       prix_unitaire,
       montant_total,
-      date_maj: new Date(),
+      date_maj,
     });
     return NextResponse.json({ success: true, data: order }, { status: 201 });
   } catch (error) {
