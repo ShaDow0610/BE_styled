@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { dbConnect } from '@/lib/db/connection';
-import User from '@/lib/models/User';
 
 const JWT_SECRET_ENV = process.env.JWT_SECRET;
 if (!JWT_SECRET_ENV) {
@@ -44,30 +42,23 @@ export async function proxy(request: NextRequest) {
     return reject();
   }
 
-  let decoded: { userId: string };
+  // Décodé depuis le JWT uniquement — pas d'appel base de données ici : ce
+  // fichier tourne en Edge Function sur Netlify (runtime Deno), où Mongoose
+  // ne peut pas s'exécuter (il a besoin de vrais sockets Node/TLS). Le rôle
+  // et le statut actif viennent donc du JWT signé à la connexion, pas d'une
+  // vérification en base à chaque requête (voir requireActiveUser() dans
+  // src/lib/authz.ts pour la vérification fraîche, utilisable route par route).
+  let decoded: { userId: string; role: string };
   try {
-    decoded = jwt.verify(token, JWT_SECRET) as unknown as { userId: string };
+    decoded = jwt.verify(token, JWT_SECRET) as unknown as { userId: string; role: string };
   } catch {
     return reject();
-  }
-
-  // Revérifie le compte en base à chaque requête plutôt que de faire
-  // confiance au rôle figé dans le JWT : une désactivation ou un changement
-  // de rôle (fait depuis /admin/users) doit prendre effet immédiatement,
-  // pas seulement dans 7 jours quand le token expire.
-  await dbConnect();
-  const user = await User.findById(decoded.userId).select('role active').lean();
-
-  if (!user || !user.active) {
-    const response = reject();
-    response.cookies.delete('token');
-    return response;
   }
 
   if (isApi) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-user-id', decoded.userId);
-    requestHeaders.set('x-user-role', user.role);
+    requestHeaders.set('x-user-role', decoded.role);
 
     return NextResponse.next({
       request: {
