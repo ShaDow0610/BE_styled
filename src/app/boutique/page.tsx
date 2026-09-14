@@ -21,18 +21,19 @@ const REASSURANCE = [
 export default async function BoutiqueHomePage() {
   const [nouveautes, looks, meilleuresVentes] = await Promise.all([
     getPublicProducts({ limit: 8 }),
-    getPublicLooks(4),
+    getPublicLooks(7),
     getPublicBestSellers(8),
   ]);
 
   const heroVideo = process.env.NEXT_PUBLIC_HERO_VIDEO_URL;
+  const [featuredLook, ...otherLooks] = looks;
 
   return (
     <div>
       <PromoBanner />
 
-      {/* Hero */}
-      <div className="relative overflow-hidden">
+      {/* Hero — porté par les looks pour poser l'ambiance de marque dès l'arrivée */}
+      <div className="outfit-hero-bg">
         {heroVideo && (
           <video
             autoPlay
@@ -43,23 +44,84 @@ export default async function BoutiqueHomePage() {
             src={heroVideo}
           />
         )}
-        {heroVideo && <div className="absolute inset-0 bg-ink/60" />}
+        {heroVideo && <div className="absolute inset-0 bg-ink/70" />}
 
-        <div className="relative container mx-auto px-4 py-24 md:py-32 text-center">
-          <p
-            className={`text-xs tracking-[0.3em] uppercase mb-4 ${heroVideo ? "text-silver-soft" : "text-ink-soft/60"}`}>
+        <div className="relative container mx-auto px-4 pt-20 pb-16 md:pt-28 text-center">
+          <p className="text-xs tracking-[0.3em] uppercase mb-4 text-silver-soft/70">
             Collection actuelle
           </p>
-          <AnimatedHeroLogo
-            src={heroVideo ? "/brand/logo-full-white.png" : "/brand/logo-full-black.png"}
-            alt="Be Styled — Le style, votre signature"
-          />
+          <AnimatedHeroLogo src="/brand/logo-full-white.png" alt="Be Styled — Le style, votre signature" />
+          <p className="font-serif italic text-lg text-silver-soft/70 -mt-4 mb-8">
+            Des tenues pensées, pas juste des pièces.
+          </p>
           <Link
             href="/boutique/catalogue"
-            className="inline-block px-8 py-3 bg-ink text-ivory rounded-lg font-semibold hover:bg-ink-soft transition-colors">
+            className="inline-block px-8 py-3 bg-ivory text-ink rounded-lg font-semibold hover:bg-silver-soft transition-colors">
             Découvrir le catalogue
           </Link>
         </div>
+
+        {featuredLook && (
+          <div className="relative container mx-auto px-4 pb-16 md:pb-20">
+            <Link
+              href={`/boutique/looks/${featuredLook._id}`}
+              className="group block relative rounded-xl overflow-hidden shadow-2xl">
+              {featuredLook.photo_couverture ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={featuredLook.photo_couverture}
+                  alt={featuredLook.nom}
+                  className="w-full aspect-[16/9] md:aspect-[21/9] object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+              ) : (
+                <div className="w-full aspect-[16/9] md:aspect-[21/9] bg-ivory-soft/10" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/10 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 text-left">
+                <p className="text-xs tracking-[0.25em] uppercase text-silver-soft/70 mb-2">Look du moment</p>
+                <h2 className="font-serif text-2xl md:text-4xl text-ivory mb-3">{featuredLook.nom}</h2>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <Price xaf={featuredLook.prix_pack} className="text-lg font-bold text-ivory" />
+                  <span className="inline-flex items-center gap-2 px-5 py-2 border border-ivory/40 text-ivory rounded-lg text-sm font-medium group-hover:bg-ivory group-hover:text-ink transition-colors">
+                    Découvrir la composition
+                  </span>
+                </div>
+              </div>
+            </Link>
+          </div>
+        )}
+
+        {otherLooks.length > 0 && (
+          <div className="relative container mx-auto px-4 pb-20 md:pb-24">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-serif text-xl md:text-2xl text-ivory">Plus de looks</h3>
+              <Link href="/boutique/looks" className="text-xs tracking-wide uppercase text-silver-soft/70 hover:text-ivory transition-colors">
+                Voir tous les looks →
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 md:gap-5">
+              {otherLooks.map((look) => (
+                <Link key={look._id} href={`/boutique/looks/${look._id}`} className="group block">
+                  <div className="rounded-lg overflow-hidden shadow-lg">
+                    {look.photo_couverture ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={look.photo_couverture}
+                        alt={look.nom}
+                        className="w-full aspect-[3/4] object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[3/4] bg-ivory-soft/10" />
+                    )}
+                  </div>
+                  <p className="text-center text-[11px] tracking-[0.1em] uppercase text-silver-soft mt-2 group-hover:text-ivory transition-colors truncate">
+                    {look.nom}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Réassurance */}
@@ -107,46 +169,6 @@ export default async function BoutiqueHomePage() {
                 <div className="px-4 pb-4">
                   <a
                     href={buildWhatsAppLink({ nom: product.nom, reference: product.reference })}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-2 border border-ink text-ink rounded-lg text-sm font-medium hover:bg-ink hover:text-ivory transition-colors">
-                    <FontAwesomeIcon icon={faWhatsapp} className="w-4 h-4" />
-                    Commander
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {looks.length > 0 && (
-        <div className="container mx-auto px-4 py-16">
-          <h2 className="font-serif text-3xl text-ink mb-8">Nos looks</h2>
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {looks.map((look) => (
-              <div
-                key={look._id}
-                className="bg-white rounded-lg shadow hover:shadow-xl transition-shadow overflow-hidden group">
-                <Link href="/boutique/looks">
-                  {look.photo_couverture ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={look.photo_couverture}
-                      alt={look.nom}
-                      className="w-full aspect-[3/4] object-cover bg-ivory-soft group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-full aspect-[3/4] bg-ivory-soft" />
-                  )}
-                  <div className="p-4">
-                    <h3 className="font-semibold text-ink">{look.nom}</h3>
-                    <Price xaf={look.prix_pack} className="block text-ink font-bold mt-1" />
-                  </div>
-                </Link>
-                <div className="px-4 pb-4">
-                  <a
-                    href={buildWhatsAppLookLink(look.nom)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 w-full py-2 border border-ink text-ink rounded-lg text-sm font-medium hover:bg-ink hover:text-ivory transition-colors">
