@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPublicLook } from "@/lib/publicCatalog";
 import { buildWhatsAppLookLink } from "@/lib/whatsapp";
@@ -35,45 +36,90 @@ export default async function LookDetailPage({ params }: { params: Params }) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="grid md:grid-cols-2 gap-10">
-        <div>
-          {look.photo_couverture ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={look.photo_couverture} alt={look.nom} className="w-full rounded-lg bg-ivory-soft object-cover aspect-square" />
-          ) : (
-            <div className="w-full rounded-lg bg-ivory-soft aspect-square" />
-          )}
+    <div className="outfit-hero-bg">
+      <div className="relative container mx-auto px-4 py-14 md:py-20">
+        {/* En-tête de marque */}
+        <div className="text-center mb-12 md:mb-16">
+          <p className="text-xs tracking-[0.35em] uppercase text-silver-soft/70 mb-2">Be Styled</p>
+          <h1 className="font-serif text-2xl md:text-3xl text-ivory tracking-wide">{look.nom.toUpperCase()}</h1>
+          <div className="flex items-center justify-center gap-3 mt-3 text-silver-soft/50">
+            <span className="w-10 h-px bg-silver-soft/30" />
+            <span className="text-xs">◆</span>
+            <span className="w-10 h-px bg-silver-soft/30" />
+          </div>
         </div>
 
-        <div>
-          <p className="text-sm text-ink-soft/60">Look</p>
-          <h1 className="font-serif text-3xl text-ink mt-1 mb-4">{look.nom}</h1>
-          <Price xaf={look.prix_pack} className="block text-2xl font-bold text-ink mb-6" />
+        {/* Breakdown : photo du look à gauche, grille d'articles à droite */}
+        <div className="grid md:grid-cols-2 gap-8 md:gap-14 items-start">
+          <div className="md:sticky md:top-24">
+            {look.photo_couverture ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={look.photo_couverture}
+                alt={look.nom}
+                className="w-full rounded-lg bg-ivory-soft object-cover aspect-[3/4] shadow-2xl"
+              />
+            ) : (
+              <div className="w-full rounded-lg bg-ivory-soft/10 aspect-[3/4]" />
+            )}
+          </div>
 
-          <a
-            href={buildWhatsAppLookLink(look.nom)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block px-8 py-3 bg-ink text-ivory rounded-lg font-semibold hover:bg-ink-soft transition-colors">
-            Commander sur WhatsApp
-          </a>
-        </div>
-      </div>
-
-      <div className="mt-14">
-        <h2 className="font-serif text-2xl text-ink mb-2">Composition du look</h2>
-        <p className="text-sm text-ink-soft/60 mb-6">
-          Prix indiqués à titre informatif, pièce par pièce — la commande se fait au prix du pack ci-dessus.
-        </p>
-        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
-          {look.items.map((item) => (
-            <div key={item._id} className="bg-white rounded-lg shadow p-4">
-              <h3 className="font-medium text-ink text-sm">{item.nom}</h3>
-              <p className="text-xs text-ink-soft/60 mt-2">Prix pièce</p>
-              <Price xaf={item.prix} className="block text-sm font-semibold text-ink" />
+          <div>
+            <div className="grid grid-cols-2 gap-4 md:gap-5">
+              {look.items.map((item) => (
+                <Link
+                  key={item._id}
+                  href={`/boutique/produit/${item.product_id}`}
+                  className="group block">
+                  <div className="bg-ivory rounded-lg overflow-hidden shadow-lg">
+                    {item.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.image}
+                        alt={item.nom}
+                        className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full aspect-square bg-ivory-soft" />
+                    )}
+                  </div>
+                  <p className="text-center text-[11px] md:text-xs tracking-[0.15em] uppercase text-silver-soft mt-3 group-hover:text-ivory transition-colors">
+                    {item.categorie || item.nom}
+                  </p>
+                  {item.prix != null && (
+                    <Price xaf={item.prix} className="block text-center text-[11px] text-silver-soft/50 mt-1" />
+                  )}
+                </Link>
+              ))}
             </div>
-          ))}
+
+            <div className="mt-10 pt-8 border-t border-silver-soft/20 flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <p className="text-xs text-silver-soft/60 mb-1">Prix du pack</p>
+                <Price xaf={look.prix_pack} className="block text-2xl font-bold text-ivory" />
+              </div>
+              <a
+                href={buildWhatsAppLookLink(look.nom)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block px-8 py-3 bg-ivory text-ink rounded-lg font-semibold hover:bg-silver-soft transition-colors">
+                Commander sur WhatsApp
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* Pied de page façon affiche */}
+        <div className="text-center mt-16 md:mt-24">
+          <p className="font-serif text-3xl md:text-4xl text-ivory">
+            OUTFIT IDEAS
+          </p>
+          <p className="font-serif italic text-lg text-silver-soft/70 mt-1">for you</p>
+          <div className="flex items-center justify-center gap-3 mt-4 text-silver-soft/50">
+            <span className="w-10 h-px bg-silver-soft/30" />
+            <span className="text-xs">◆</span>
+            <span className="w-10 h-px bg-silver-soft/30" />
+          </div>
         </div>
       </div>
     </div>

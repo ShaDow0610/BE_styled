@@ -199,8 +199,11 @@ export interface PublicLook {
 export interface PublicLookDetail extends PublicLook {
   items: {
     _id: string;
+    product_id: string;
     nom: string;
+    categorie: string;
     prix: number | null;
+    image: string | null;
   }[];
 }
 
@@ -213,20 +216,33 @@ export async function getPublicLook(id: string): Promise<PublicLookDetail | null
   if (!look) return null;
 
   const lookItems = await LookItem.find({ look_id: id })
-    .populate({ path: "product_id", select: "nom" })
+    .populate({ path: "product_id", select: "nom categorie" })
     .lean();
 
   if (lookItems.length === 0) return null;
 
   const productIds = (lookItems as any[]).map((i) => i.product_id?._id).filter(Boolean);
-  const priceIndex = await buildPriceIndex(productIds);
+
+  const [priceIndex, images] = await Promise.all([
+    buildPriceIndex(productIds),
+    ProductImage.find({ product_id: { $in: productIds } }).sort({ ordre_affichage: 1 }).lean(),
+  ]);
+
+  const imageByProduct = new Map<string, string>();
+  for (const img of images) {
+    const key = img.product_id.toString();
+    if (!imageByProduct.has(key)) imageByProduct.set(key, img.url);
+  }
 
   const items = (lookItems as any[])
     .filter((i) => i.product_id)
     .map((i) => ({
       _id: i._id.toString(),
+      product_id: i.product_id._id.toString(),
       nom: i.product_id.nom ?? "Produit supprimé",
+      categorie: i.product_id.categorie ?? "",
       prix: resolvePrice(priceIndex, i.product_id._id.toString()),
+      image: imageByProduct.get(i.product_id._id.toString()) ?? null,
     }));
 
   return {

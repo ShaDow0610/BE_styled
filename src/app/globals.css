@@ -43,3 +43,24 @@ body {
 .animate-ring-spin {
   animation: ring-spin 1.4s linear infinite;
 }
+
+/* Fond "outfit breakdown" (page look) — dégradé sombre de la palette de
+   marque avec un effet de lumière diagonale façon fenêtre, discret. */
+.outfit-hero-bg {
+  position: relative;
+  background: linear-gradient(135deg, #232326 0%, #0b0b0c 55%, #1c1c1e 100%);
+  overflow: hidden;
+}
+.outfit-hero-bg::before {
+  content: "";
+  position: absolute;
+  inset: -25%;
+  background: repeating-linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 2px,
+    transparent 2px,
+    transparent 110px
+  );
+  pointer-events: none;
+}
