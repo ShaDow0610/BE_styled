@@ -13,7 +13,7 @@ interface OrderEntry {
   couleur?: string;
   taille?: string;
   montant_total?: number | null;
-  product_id: { nom: string } | null;
+  product_id: { _id: string; nom: string } | null;
 }
 
 interface ProductOption {
@@ -55,6 +55,8 @@ function NewInvoiceForm() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [montantTotalConnu, setMontantTotalConnu] = useState("");
+  const [isSplitting, setIsSplitting] = useState(false);
 
   const loadOrdersFor = async (idsList: string[]) => {
     const r = await fetch("/api/orders");
@@ -93,10 +95,14 @@ function NewInvoiceForm() {
   const total = orders.reduce((sum, o) => sum + (o.montant_total ?? 0), 0);
 
   const handleAddProduct = async (payload: { product_id: string; couleur?: string; taille?: string; quantite: number; prix_unitaire?: number }) => {
+    // La date de facture choisie ci-dessous sert aussi de date de vente pour
+    // chaque ligne — indispensable pour enregistrer une vente déjà passée
+    // (rétroactive) plutôt que la date de saisie.
+    const date_maj = form.date_facture;
     const res = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "commande_client", ...payload }),
+      body: JSON.stringify({ type: "commande_client", date_maj, ...payload }),
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
@@ -104,17 +110,58 @@ function NewInvoiceForm() {
     }
     const newId = data.data._id;
     // La vente est déjà conclue (on facture immédiatement) — on marque
-    // l'entrée comme livrée pour rester cohérent avec le kanban.
+    // l'entrée comme livrée pour rester cohérent avec le kanban, avec la
+    // même date que la création (sinon date_maj retombe à aujourd'hui).
     await fetch(`/api/orders/${newId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ statut: "livre_client" }),
+      body: JSON.stringify({ statut: "livre_client", date_maj }),
     });
     setExtraIds((prev) => {
       const next = [...prev, newId];
       loadOrdersFor([...ids, ...next]);
       return next;
     });
+  };
+
+  // Répartit un montant total connu (ex: "50 000 pour tout") sur les lignes
+  // qui n'ont pas de prix précis par article — proportionnellement au prix
+  // catalogue de chaque produit (× quantité), la dernière ligne absorbant
+  // l'arrondi pour que la somme corresponde exactement au total saisi.
+  const handleSplitTotal = async () => {
+    const totalAmount = Number(montantTotalConnu);
+    if (!totalAmount || totalAmount <= 0 || orders.length === 0) return;
+
+    setIsSplitting(true);
+    try {
+      const weights = orders.map((o) => {
+        const catalogPrice = products.find((p) => p._id === o.product_id?._id)?.prix_actuel;
+        return (catalogPrice && catalogPrice > 0 ? catalogPrice : 1) * o.quantite;
+      });
+      const totalWeight = weights.reduce((a, b) => a + b, 0) || 1;
+
+      let allocated = 0;
+      for (let i = 0; i < orders.length; i++) {
+        const isLast = i === orders.length - 1;
+        const share = isLast
+          ? Math.round((totalAmount - allocated) * 100) / 100
+          : Math.round(((totalAmount * weights[i]) / totalWeight) * 100) / 100;
+        allocated += share;
+        const prixUnitaire = Math.round((share / orders[i].quantite) * 100) / 100;
+
+        await fetch(`/api/orders/${orders[i]._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prix_unitaire: prixUnitaire }),
+        });
+      }
+      await loadOrdersFor([...ids, ...extraIds]);
+      toast.success("Montant réparti sur les lignes");
+    } catch {
+      toast.error("Erreur lors de la répartition du montant");
+    } finally {
+      setIsSplitting(false);
+    }
   };
 
   const handleRemoveLine = async (orderId: string) => {
@@ -171,6 +218,21 @@ function NewInvoiceForm() {
       </div>
 
       <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <label className="block text-sm font-medium text-ink-soft mb-2">Date de la vente</label>
+        <input
+          type="date"
+          max={new Date().toISOString().slice(0, 10)}
+          value={form.date_facture}
+          onChange={(e) => setForm({ ...form, date_facture: e.target.value })}
+          className="w-48 px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+        />
+        <p className="text-xs text-ink-soft/60 mt-1">
+          À régler d&apos;abord si la vente a déjà eu lieu — les articles ajoutés ci-dessous
+          reprennent cette date.
+        </p>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h2 className="font-serif text-xl text-ink mb-4">Lignes sélectionnées</h2>
         {orders.length === 0 ? (
           <p className="text-red-600 text-sm">Aucune commande valide sélectionnée.</p>
@@ -208,6 +270,33 @@ function NewInvoiceForm() {
               </tbody>
             </table>
             <p className="text-right font-bold text-ink mt-3">Total : {formatXAF(total)}</p>
+
+            <div className="mt-4 pt-4 border-t border-silver-soft flex flex-wrap items-end gap-3">
+              <div>
+                <label className="block text-sm font-medium text-ink-soft mb-2">
+                  Montant total encaissé (si pas de prix par article)
+                </label>
+                <input
+                  type="number" step="0.01" min="0"
+                  value={montantTotalConnu}
+                  onChange={(e) => setMontantTotalConnu(e.target.value)}
+                  placeholder="Ex: 50000"
+                  className="w-48 px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleSplitTotal}
+                disabled={isSplitting || !montantTotalConnu || orders.length === 0}
+                className="px-4 py-2 border border-ink text-ink rounded-lg text-sm hover:bg-ink hover:text-ivory transition-colors disabled:opacity-50">
+                {isSplitting ? "Répartition..." : "Répartir sur les lignes"}
+              </button>
+              <p className="text-xs text-ink-soft/60 w-full">
+                Répartit le montant proportionnellement au prix catalogue de chaque article
+                — utile quand on connaît le total payé (ex: &quot;50 000 pour tout&quot;) mais pas
+                le détail par article.
+              </p>
+            </div>
           </div>
         )}
 
@@ -237,15 +326,6 @@ function NewInvoiceForm() {
           <input
             value={form.client_adresse}
             onChange={(e) => setForm({ ...form, client_adresse: e.target.value })}
-            className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-ink-soft mb-2">Date de facture</label>
-          <input
-            type="date"
-            value={form.date_facture}
-            onChange={(e) => setForm({ ...form, date_facture: e.target.value })}
             className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
           />
         </div>

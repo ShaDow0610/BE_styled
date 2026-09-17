@@ -15,18 +15,48 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const { id } = await params;
     const body = await request.json();
 
-    if (!ORDER_STATUSES.includes(body.statut)) {
-      return NextResponse.json({ success: false, error: 'Statut invalide' }, { status: 400 });
-    }
-
-    const order = await OrderTracking.findByIdAndUpdate(
-      id,
-      { statut: body.statut, date_maj: new Date() },
-      { new: true }
-    );
+    const order = await OrderTracking.findById(id);
     if (!order) {
       return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
     }
+
+    const update: Record<string, unknown> = {};
+
+    if (body.statut !== undefined) {
+      if (!ORDER_STATUSES.includes(body.statut)) {
+        return NextResponse.json({ success: false, error: 'Statut invalide' }, { status: 400 });
+      }
+      update.statut = body.statut;
+      // Une transition de statut normale (kanban) date la mise à jour à
+      // aujourd'hui ; une vente rétroactive fournit sa propre date_maj
+      // ci-dessous, qui prévaut alors sur ce comportement par défaut.
+      update.date_maj = new Date();
+    }
+
+    // Permet de corriger le prix d'une ligne après coup (ex: répartition
+    // d'un montant total encaissé sur plusieurs articles sans prix connu
+    // à l'unité) — recalcule le montant total à partir de la quantité déjà
+    // enregistrée.
+    const prixSaisi = Number(body.prix_unitaire);
+    if (prixSaisi > 0) {
+      update.prix_unitaire = Math.round(prixSaisi * 100) / 100;
+      update.montant_total = Math.round(prixSaisi * order.quantite * 100) / 100;
+    }
+
+    if (body.date_maj) {
+      const date_maj = new Date(body.date_maj);
+      if (Number.isNaN(date_maj.getTime()) || date_maj.getTime() > Date.now()) {
+        return NextResponse.json({ success: false, error: 'Date invalide' }, { status: 400 });
+      }
+      update.date_maj = date_maj;
+    }
+
+    if (Object.keys(update).length === 0) {
+      return NextResponse.json({ success: false, error: 'Aucune modification fournie' }, { status: 400 });
+    }
+
+    Object.assign(order, update);
+    await order.save();
 
     return NextResponse.json({ success: true, data: order });
   } catch (error) {

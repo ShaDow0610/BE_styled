@@ -11,6 +11,7 @@ import {
   faTicket,
   faUsers,
   faMoneyBillTransfer,
+  faAddressCard,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface StoredUser {
@@ -78,6 +79,13 @@ export default function AdminPage() {
       title: "Taux de change",
       description: "Taux XAF/USD et XAF/EUR affichés en boutique",
       visible: user.role === "admin",
+    },
+    {
+      href: "/admin/carte-visite",
+      icon: faAddressCard,
+      title: "Carte de visite",
+      description: "Coordonnées et liens du QR code à scanner",
+      visible: true,
     },
   ].filter((s) => s.visible);
 

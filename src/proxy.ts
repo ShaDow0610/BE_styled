@@ -14,7 +14,12 @@ const JWT_SECRET: string = JWT_SECRET_ENV;
 // factures, looks, rapports, packaging, dashboard, admin...) exige un compte
 // actif — évite d'oublier un préfixe de page à chaque nouvelle section.
 function isPublicPath(pathname: string): boolean {
-  return pathname === '/login' || pathname === '/api/auth/login' || pathname.startsWith('/boutique');
+  return (
+    pathname === '/login' ||
+    pathname === '/api/auth/login' ||
+    pathname === '/api/vcard' ||
+    pathname.startsWith('/boutique')
+  );
 }
 
 export async function proxy(request: NextRequest) {
@@ -71,7 +76,11 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
+  // Exclut aussi les fichiers statiques servis depuis /public (logos,
+  // icônes...) : sans ça, un visiteur non connecté sur la vitrine se
+  // voyait rediriger vers /login à chaque image demandée (ex: /brand/*.png),
+  // donc logo et icônes ne s'affichaient jamais pour un public anonyme.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|otf)$).*)',
   ],
 };

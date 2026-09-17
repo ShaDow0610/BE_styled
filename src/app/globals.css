@@ -44,23 +44,58 @@ body {
   animation: ring-spin 1.4s linear infinite;
 }
 
-/* Fond "outfit breakdown" (page look) — dégradé sombre de la palette de
-   marque avec un effet de lumière diagonale façon fenêtre, discret. */
+/* Fond "vitrine looks" — utilisé sur toute la page d'accueil et les pages
+   look, pas juste le hero, pour que l'ambiance reste cohérente du premier
+   au dernier scroll. Base blanc cassé/ivoire chaleureuse (jamais de noir
+   plein — un fond sombre écrase le logo noir de la nav et alourdit tout) ;
+   la profondeur vient de la lumière et des ombres, pas de l'obscurité :
+   un point de lumière doux dans un coin, un vignettage très léger qui
+   referme les bords. CSS pur (aucune image externe) pour rester fiable —
+   c'est cette même surface qui sert de "studio" derrière les futures
+   photos détourées (fond transparent). */
 .outfit-hero-bg {
   position: relative;
-  background: linear-gradient(135deg, #232326 0%, #0b0b0c 55%, #1c1c1e 100%);
   overflow: hidden;
+  background: radial-gradient(ellipse 75% 60% at 20% 0%, #fffefb 0%, #f7f2e8 45%, #efe8da 100%);
 }
-.outfit-hero-bg::before {
+/* Vignettage très doux — referme les bords sans jamais assombrir le propos */
+.outfit-hero-bg::after {
   content: "";
   position: absolute;
-  inset: -25%;
-  background: repeating-linear-gradient(
-    115deg,
-    rgba(255, 255, 255, 0.05) 0px,
-    rgba(255, 255, 255, 0.05) 2px,
-    transparent 2px,
-    transparent 110px
-  );
+  inset: 0;
+  background: radial-gradient(ellipse 100% 65% at 50% 0%, transparent 55%, rgba(80, 65, 40, 0.07) 100%);
+  pointer-events: none;
+}
+
+/* Ombre "au sol" sous une photo mise en avant — donne l'impression qu'elle
+   repose dans l'espace plutôt qu'elle flotte sur le fond. À poser sur un
+   conteneur juste après l'image/le bloc concerné. Reste sombre (une vraie
+   ombre l'est, même en pièce claire) mais discrète. */
+.grounded-shadow {
+  position: relative;
+  height: 2.5rem;
+  margin-top: -1.25rem;
+  background: radial-gradient(ellipse 55% 100% at 50% 0%, rgba(30, 25, 15, 0.18), transparent 75%);
+  pointer-events: none;
+}
+
+/* "Scène photo" — case destinée à recevoir une image détourée (fond
+   transparent) : elle fournit elle-même le décor (lumière chaude + ombre
+   au sol) autour du sujet, comme une pièce claire et épurée plutôt qu'un
+   studio sombre. L'image doit être affichée en object-contain (jamais
+   object-cover) pour que la découpe reste intacte et flotte au-dessus de
+   ce décor. */
+.photo-stage {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(ellipse 85% 70% at 25% 10%, #fffefb 0%, #f6f0e4 55%, #ece3d1 100%);
+}
+.photo-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 96%, rgba(30, 25, 15, 0.18), transparent 70%),
+    radial-gradient(ellipse 100% 70% at 50% 0%, transparent 60%, rgba(80, 65, 40, 0.08) 100%);
   pointer-events: none;
 }
