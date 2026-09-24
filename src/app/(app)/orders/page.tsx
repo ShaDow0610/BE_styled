@@ -440,6 +440,15 @@ export default function OrdersPage() {
   );
 }
 
+interface PanierLigne {
+  key: string;
+  product: ProductOption;
+  couleur: string | null;
+  taille: string | null;
+  quantite: number;
+  prix: string;
+}
+
 function NouvelleVenteModal({
   products,
   bestSellerIds,
@@ -458,13 +467,16 @@ function NouvelleVenteModal({
   const [selectedTaille, setSelectedTaille] = useState<string | null>(null);
   const [prix, setPrix] = useState("");
   const [quantite, setQuantite] = useState("1");
+  const [panier, setPanier] = useState<PanierLigne[]>([]);
+  const [step, setStep] = useState<"produits" | "recap">("produits");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
-  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [createdOrderIds, setCreatedOrderIds] = useState<string[] | null>(null);
   const [isPastSale, setIsPastSale] = useState(false);
   const [dateVente, setDateVente] = useState(new Date().toISOString().slice(0, 10));
   const [montantEncaisse, setMontantEncaisse] = useState("");
   const [modePaiement, setModePaiement] = useState("especes");
+  const [montantTotalConnu, setMontantTotalConnu] = useState("");
 
   // Les articles les plus vendus récemment remontent en premier — pas
   // besoin de chercher/scroller pour ceux vendus tous les jours.
@@ -484,6 +496,7 @@ function NouvelleVenteModal({
     setSelectedCouleur(null);
     setSelectedTaille(null);
     setPrix(product.prix_actuel != null ? String(product.prix_actuel) : "");
+    setQuantite("1");
   };
 
   const needsChoice = selectedProduct
@@ -497,51 +510,114 @@ function NouvelleVenteModal({
     setSelectedTaille(null);
     setPrix("");
     setQuantite("1");
+    setPanier([]);
+    setStep("produits");
     setError("");
-    setCreatedOrderId(null);
+    setCreatedOrderIds(null);
     setIsPastSale(false);
     setDateVente(new Date().toISOString().slice(0, 10));
     setMontantEncaisse("");
     setModePaiement("especes");
+    setMontantTotalConnu("");
+  };
+
+  const handleAddToPanier = () => {
+    if (!selectedProduct) return;
+    setPanier((prev) => [
+      ...prev,
+      {
+        key: `${selectedProduct._id}-${selectedCouleur ?? ""}-${selectedTaille ?? ""}-${Date.now()}`,
+        product: selectedProduct,
+        couleur: selectedCouleur,
+        taille: selectedTaille,
+        quantite: Number(quantite) || 1,
+        prix,
+      },
+    ]);
+    setSelectedProduct(null);
+    setSelectedCouleur(null);
+    setSelectedTaille(null);
+    setPrix("");
+    setQuantite("1");
+  };
+
+  const handleRemoveLigne = (key: string) => {
+    setPanier((prev) => prev.filter((l) => l.key !== key));
+  };
+
+  const panierTotal = panier.reduce((sum, l) => sum + (Number(l.prix) || 0) * l.quantite, 0);
+
+  // Répartit un montant total connu (vente groupée à un prix global, ex:
+  // "50 000 pour la chemise + le pantalon + le t-shirt") sur les lignes du
+  // panier, proportionnellement au prix catalogue de chaque article — la
+  // dernière ligne absorbe l'arrondi pour retomber exactement sur le total.
+  const handleSplitTotal = () => {
+    const totalAmount = Number(montantTotalConnu);
+    if (!totalAmount || totalAmount <= 0 || panier.length === 0) return;
+
+    const weights = panier.map((l) => {
+      const catalogPrice = l.product.prix_actuel;
+      return (catalogPrice && catalogPrice > 0 ? catalogPrice : 1) * l.quantite;
+    });
+    const totalWeight = weights.reduce((a, b) => a + b, 0) || 1;
+
+    let allocated = 0;
+    setPanier((prev) =>
+      prev.map((l, i) => {
+        const isLast = i === prev.length - 1;
+        const share = isLast
+          ? Math.round((totalAmount - allocated) * 100) / 100
+          : Math.round(((totalAmount * weights[i]) / totalWeight) * 100) / 100;
+        allocated += share;
+        const prixUnitaire = Math.round((share / l.quantite) * 100) / 100;
+        return { ...l, prix: String(prixUnitaire) };
+      })
+    );
   };
 
   const handleSubmit = async () => {
-    if (!selectedProduct) return;
+    if (panier.length === 0) return;
     setError("");
     setIsSaving(true);
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product_id: selectedProduct._id,
-          couleur: selectedCouleur || undefined,
-          taille: selectedTaille || undefined,
-          type: "commande_client",
-          quantite: Number(quantite) || 1,
-          prix_unitaire: Number(prix) || undefined,
-          // Une vente passée est directement marquée livrée, à la vraie
-          // date de la vente — sinon elle fausserait les statistiques du
-          // jour de saisie au lieu du jour réel de la vente.
-          ...(isPastSale ? { statut: "livre_client", date_maj: dateVente } : {}),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Erreur lors de l'enregistrement");
+      const newIds: string[] = [];
+      for (const ligne of panier) {
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            product_id: ligne.product._id,
+            couleur: ligne.couleur || undefined,
+            taille: ligne.taille || undefined,
+            type: "commande_client",
+            quantite: ligne.quantite,
+            prix_unitaire: Number(ligne.prix) || undefined,
+            // Une vente passée est directement marquée livrée, à la vraie
+            // date de la vente — sinon elle fausserait les statistiques du
+            // jour de saisie au lieu du jour réel de la vente.
+            ...(isPastSale ? { statut: "livre_client", date_maj: dateVente } : {}),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Erreur lors de l'enregistrement");
+        }
+        newIds.push(data.data._id);
       }
 
       const encaisse = Number(montantEncaisse);
-      if (isPastSale && encaisse > 0) {
-        await fetch(`/api/orders/${data.data._id}/payments`, {
+      if (isPastSale && encaisse > 0 && newIds.length > 0) {
+        // Le paiement encaissé porte sur l'ensemble de la vente — rattaché
+        // à la première ligne pour rester traçable sans le dupliquer.
+        await fetch(`/api/orders/${newIds[0]}/payments`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ montant: encaisse, mode_paiement: modePaiement, date_paiement: dateVente }),
         });
       }
 
-      toast.success("Vente enregistrée");
-      setCreatedOrderId(data.data._id);
+      toast.success(panier.length > 1 ? "Vente enregistrée (plusieurs articles)" : "Vente enregistrée");
+      setCreatedOrderIds(newIds);
       onCreated();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
@@ -560,12 +636,14 @@ function NouvelleVenteModal({
           <button onClick={onClose} className="text-ink-soft hover:text-ink text-2xl leading-none">×</button>
         </div>
 
-        {createdOrderId ? (
+        {createdOrderIds ? (
           <div className="text-center py-8">
-            <p className="text-ink font-semibold mb-6">Vente enregistrée avec succès.</p>
+            <p className="text-ink font-semibold mb-6">
+              Vente enregistrée avec succès ({createdOrderIds.length} article{createdOrderIds.length > 1 ? "s" : ""}).
+            </p>
             <div className="flex flex-wrap justify-center gap-3">
               <Link
-                href={`/orders/invoice/new?ids=${createdOrderId}`}
+                href={`/orders/invoice/new?ids=${createdOrderIds.join(",")}`}
                 className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
                 Imprimer la facture
               </Link>
@@ -581,8 +659,134 @@ function NouvelleVenteModal({
               </button>
             </div>
           </div>
+        ) : step === "recap" ? (
+          <div>
+            <button
+              onClick={() => setStep("produits")}
+              className="text-sm text-ink-soft underline hover:no-underline mb-4">
+              ← Ajouter un autre article
+            </button>
+
+            <div className="border border-silver-soft rounded-lg divide-y divide-silver-soft mb-4">
+              {panier.map((l) => (
+                <div key={l.key} className="flex items-center justify-between gap-3 p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-ink truncate">
+                      {l.quantite}× {l.product.nom}
+                    </p>
+                    <p className="text-xs text-ink-soft/60">{[l.couleur, l.taille].filter(Boolean).join(" / ")}</p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <input
+                      type="number" step="0.01" min="0"
+                      value={l.prix}
+                      onChange={(e) =>
+                        setPanier((prev) => prev.map((x) => (x.key === l.key ? { ...x, prix: e.target.value } : x)))
+                      }
+                      className="w-28 px-2 py-1 border border-silver-soft rounded text-sm focus:outline-none focus:border-ink"
+                    />
+                    <button onClick={() => handleRemoveLigne(l.key)} className="text-red-600 hover:underline text-xs">
+                      Retirer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-right font-bold text-ink mb-4">Total : {formatXAF(panierTotal)}</p>
+
+            {panier.length > 1 && (
+              <div className="flex flex-wrap items-end gap-3 mb-4 pb-4 border-b border-silver-soft">
+                <div>
+                  <label className="block text-sm font-medium text-ink-soft mb-2">
+                    Ou : montant total pour le tout (si pas de prix par article)
+                  </label>
+                  <input
+                    type="number" step="0.01" min="0"
+                    value={montantTotalConnu}
+                    onChange={(e) => setMontantTotalConnu(e.target.value)}
+                    placeholder="Ex: 50000"
+                    className="w-48 px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSplitTotal}
+                  disabled={!montantTotalConnu}
+                  className="px-4 py-2 border border-ink text-ink rounded-lg text-sm hover:bg-ink hover:text-ivory transition-colors disabled:opacity-50">
+                  Répartir sur les articles
+                </button>
+              </div>
+            )}
+
+            <div className="pt-2">
+              <label className="flex items-center gap-2 text-sm text-ink-soft">
+                <input type="checkbox" checked={isPastSale} onChange={(e) => setIsPastSale(e.target.checked)} />
+                C&apos;est une vente déjà effectuée (à enregistrer rétroactivement)
+              </label>
+            </div>
+
+            {isPastSale && (
+              <div className="grid sm:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-ink-soft mb-2">Date de la vente</label>
+                  <input
+                    type="date" max={new Date().toISOString().slice(0, 10)}
+                    value={dateVente}
+                    onChange={(e) => setDateVente(e.target.value)}
+                    className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-ink-soft mb-2">Déjà encaissé (optionnel)</label>
+                  <input
+                    type="number" step="0.01" min="0"
+                    value={montantEncaisse}
+                    onChange={(e) => setMontantEncaisse(e.target.value)}
+                    placeholder="Laisser vide si rien reçu"
+                    className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
+                  />
+                </div>
+                {Number(montantEncaisse) > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-ink-soft mb-2">Mode de paiement</label>
+                    <select
+                      value={modePaiement}
+                      onChange={(e) => setModePaiement(e.target.value)}
+                      className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
+                      <option value="especes">Espèces</option>
+                      <option value="mobile_money">Mobile money</option>
+                      <option value="virement">Virement</option>
+                      <option value="autre">Autre</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {error && <p className="text-sm text-red-600 mt-4">{error}</p>}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleSubmit}
+                disabled={isSaving || panier.length === 0}
+                className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors disabled:opacity-50">
+                {isSaving ? "Enregistrement..." : "Enregistrer la vente"}
+              </button>
+            </div>
+          </div>
         ) : !selectedProduct ? (
           <>
+            {panier.length > 0 && (
+              <div className="mb-4 p-3 bg-ivory-soft rounded-lg flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-sm text-ink">
+                  Panier : {panier.length} article{panier.length > 1 ? "s" : ""} — {formatXAF(panierTotal)}
+                </p>
+                <button
+                  onClick={() => setStep("recap")}
+                  className="px-4 py-1.5 bg-ink text-ivory rounded-lg text-sm hover:bg-ink-soft transition-colors">
+                  Voir le panier →
+                </button>
+              </div>
+            )}
             <input
               type="text"
               placeholder="Rechercher un produit..."
@@ -680,58 +884,11 @@ function NouvelleVenteModal({
                   />
                 </div>
 
-                <div className="sm:col-span-2 pt-2 border-t border-silver-soft">
-                  <label className="flex items-center gap-2 text-sm text-ink-soft">
-                    <input type="checkbox" checked={isPastSale} onChange={(e) => setIsPastSale(e.target.checked)} />
-                    C&apos;est une vente déjà effectuée (à enregistrer rétroactivement)
-                  </label>
-                </div>
-
-                {isPastSale && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-ink-soft mb-2">Date de la vente</label>
-                      <input
-                        type="date" max={new Date().toISOString().slice(0, 10)}
-                        value={dateVente}
-                        onChange={(e) => setDateVente(e.target.value)}
-                        className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-ink-soft mb-2">Déjà encaissé (optionnel)</label>
-                      <input
-                        type="number" step="0.01" min="0"
-                        value={montantEncaisse}
-                        onChange={(e) => setMontantEncaisse(e.target.value)}
-                        placeholder="Laisser vide si rien reçu"
-                        className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink"
-                      />
-                    </div>
-                    {Number(montantEncaisse) > 0 && (
-                      <div>
-                        <label className="block text-sm font-medium text-ink-soft mb-2">Mode de paiement</label>
-                        <select
-                          value={modePaiement}
-                          onChange={(e) => setModePaiement(e.target.value)}
-                          className="w-full px-4 py-2 border border-silver-soft rounded-lg focus:outline-none focus:border-ink">
-                          <option value="especes">Espèces</option>
-                          <option value="mobile_money">Mobile money</option>
-                          <option value="virement">Virement</option>
-                          <option value="autre">Autre</option>
-                        </select>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {error && <p className="sm:col-span-2 text-sm text-red-600">{error}</p>}
                 <div className="sm:col-span-2 flex gap-3">
                   <button
-                    onClick={handleSubmit}
-                    disabled={isSaving || !prix || Number(prix) <= 0}
-                    className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors disabled:opacity-50">
-                    {isSaving ? "Enregistrement..." : "Enregistrer la vente"}
+                    onClick={handleAddToPanier}
+                    className="px-6 py-2 bg-ink text-ivory rounded-lg hover:bg-ink-soft transition-colors">
+                    + Ajouter au panier
                   </button>
                   <button
                     onClick={() => { setSelectedCouleur(null); setSelectedTaille(null); }}

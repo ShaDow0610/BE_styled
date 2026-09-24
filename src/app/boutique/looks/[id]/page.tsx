@@ -58,7 +58,6 @@ export default async function LookDetailPage({ params }: { params: Params }) {
               alt={look.nom}
               aspect="aspect-[3/4]"
               rounded="rounded-lg"
-              padding="p-8"
               className="shadow-xl"
             />
           </div>
@@ -75,7 +74,6 @@ export default async function LookDetailPage({ params }: { params: Params }) {
                     alt={item.nom}
                     aspect="aspect-square"
                     rounded="rounded-lg"
-                    padding="p-4"
                     className="shadow"
                   />
                   <p className="text-center text-[11px] md:text-xs tracking-[0.15em] uppercase text-ink-soft/60 mt-3 group-hover:text-ink transition-colors">

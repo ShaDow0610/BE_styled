@@ -81,21 +81,18 @@ export default async function BoutiqueHomePage() {
           <div id="looks" className="relative container mx-auto px-4 pb-10 md:pb-14 scroll-mt-8">
             <Link
               href={`/boutique/looks/${featuredLook._id}`}
-              className="group block bg-white rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-shadow">
+              className="group grid sm:grid-cols-2 max-w-3xl mx-auto bg-white rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-shadow">
               <PhotoStage
                 src={featuredLook.photo_couverture}
                 alt={featuredLook.nom}
-                aspect="aspect-[16/9] md:aspect-[21/9]"
+                aspect="aspect-[3/4]"
                 rounded=""
-                padding="p-8 md:p-16"
               />
-              <div className="p-6 md:p-10 flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <p className="text-xs tracking-[0.25em] uppercase text-ink-soft/50 mb-2">Look du moment</p>
-                  <h2 className="font-serif text-2xl md:text-4xl text-ink mb-3">{featuredLook.nom}</h2>
-                  <Price xaf={featuredLook.prix_pack} className="text-lg font-bold text-ink" />
-                </div>
-                <span className="inline-flex items-center gap-2 px-5 py-2 border border-ink text-ink rounded-lg text-sm font-medium group-hover:bg-ink group-hover:text-ivory transition-colors">
+              <div className="p-6 md:p-10 flex flex-col justify-center">
+                <p className="text-xs tracking-[0.25em] uppercase text-ink-soft/50 mb-2">Look du moment</p>
+                <h2 className="font-serif text-2xl md:text-3xl text-ink mb-3">{featuredLook.nom}</h2>
+                <Price xaf={featuredLook.prix_pack} className="text-lg font-bold text-ink mb-5" />
+                <span className="inline-flex items-center justify-center gap-2 px-5 py-2 border border-ink text-ink rounded-lg text-sm font-medium group-hover:bg-ink group-hover:text-ivory transition-colors self-start">
                   Découvrir la composition
                 </span>
               </div>

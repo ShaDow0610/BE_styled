@@ -1,15 +1,22 @@
 /**
  * Case "studio" pour une image produit/look — fournit elle-même le décor
- * (lumière + ombre au sol) autour du sujet. Faite pour des images détourées
- * (fond transparent) affichées en object-contain, mais fonctionne aussi
- * avec une photo pleine (object-contain centre alors l'image dans la case).
+ * (lumière + ombre au sol) autour du sujet, visible sur les bords/coins
+ * non couverts par la photo (fond manquant, image transparente).
+ *
+ * `fit="cover"` (par défaut) : la photo remplit tout le cadre, comme une
+ * vraie photo produit — adapté aux photos normales (JPEG, selfie miroir...)
+ * qui composent le fond de la boutique aujourd'hui.
+ * `fit="contain"` : la photo entière reste visible sans être rognée,
+ * flottant au-dessus du décor — à réserver aux images détourées (fond
+ * transparent), où recadrer couperait le sujet.
  */
 export default function PhotoStage({
   src,
   alt,
   aspect = "aspect-[3/4]",
   rounded = "rounded-lg",
-  padding = "p-6",
+  padding,
+  fit = "cover",
   className = "",
 }: {
   src: string | null | undefined;
@@ -17,8 +24,12 @@ export default function PhotoStage({
   aspect?: string;
   rounded?: string;
   padding?: string;
+  fit?: "cover" | "contain";
   className?: string;
 }) {
+  const resolvedPadding = padding ?? (fit === "contain" ? "p-6" : "p-0");
+  const objectFit = fit === "contain" ? "object-contain" : "object-cover";
+
   return (
     <div className={`photo-stage ${aspect} ${rounded} ${className}`}>
       {src && (
@@ -26,7 +37,7 @@ export default function PhotoStage({
         <img
           src={src}
           alt={alt}
-          className={`relative z-10 w-full h-full object-contain ${padding} group-hover:scale-105 transition-transform duration-300`}
+          className={`relative z-10 w-full h-full ${objectFit} ${resolvedPadding} group-hover:scale-105 transition-transform duration-300`}
         />
       )}
     </div>
