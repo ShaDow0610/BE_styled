@@ -6,6 +6,9 @@ import PromoBanner from "./components/PromoBanner";
 import Price from "./components/Price";
 import AnimatedHeroLogo from "./components/AnimatedHeroLogo";
 import ColorSwatches from "./components/ColorSwatches";
+import ScrollReveal from "./components/ScrollReveal";
+import StorytellingSection from "./components/StorytellingSection";
+import FeaturedLookReveal from "./components/FeaturedLookReveal";
 import PhotoStage from "./components/PhotoStage";
 import { getPublicProducts, getPublicLooks, getPublicBestSellers } from "@/lib/publicCatalog";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
@@ -22,7 +25,7 @@ const REASSURANCE = [
 export default async function BoutiqueHomePage() {
   const [nouveautes, looks, meilleuresVentes] = await Promise.all([
     getPublicProducts({ limit: 8 }),
-    getPublicLooks(20),
+    getPublicLooks(200),
     getPublicBestSellers(8),
   ]);
 
@@ -77,28 +80,7 @@ export default async function BoutiqueHomePage() {
           </div>
         </div>
 
-        {featuredLook && (
-          <div id="looks" className="relative container mx-auto px-4 pb-10 md:pb-14 scroll-mt-8">
-            <Link
-              href={`/boutique/looks/${featuredLook._id}`}
-              className="group grid sm:grid-cols-2 max-w-3xl mx-auto bg-white rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-shadow">
-              <PhotoStage
-                src={featuredLook.photo_couverture}
-                alt={featuredLook.nom}
-                aspect="aspect-[3/4]"
-                rounded=""
-              />
-              <div className="p-6 md:p-10 flex flex-col justify-center">
-                <p className="text-xs tracking-[0.25em] uppercase text-ink-soft/50 mb-2">Look du moment</p>
-                <h2 className="font-serif text-2xl md:text-3xl text-ink mb-3">{featuredLook.nom}</h2>
-                <Price xaf={featuredLook.prix_pack} className="text-lg font-bold text-ink mb-5" />
-                <span className="inline-flex items-center justify-center gap-2 px-5 py-2 border border-ink text-ink rounded-lg text-sm font-medium group-hover:bg-ink group-hover:text-ivory transition-colors self-start">
-                  Découvrir la composition
-                </span>
-              </div>
-            </Link>
-          </div>
-        )}
+        {featuredLook && <FeaturedLookReveal look={featuredLook} />}
 
         {otherLooks.length > 0 && (
           <div className="relative container mx-auto px-4 pb-20 md:pb-24">
@@ -109,27 +91,30 @@ export default async function BoutiqueHomePage() {
               </Link>
             </div>
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {otherLooks.map((look) => (
-                <Link
-                  key={look._id}
-                  href={`/boutique/looks/${look._id}`}
-                  className="group block bg-white rounded-lg overflow-hidden shadow hover:shadow-xl transition-shadow">
-                  <PhotoStage src={look.photo_couverture} alt={look.nom} aspect="aspect-[4/5]" rounded="" />
-                  <div className="p-5">
-                    <h4 className="font-serif text-lg text-ink">{look.nom}</h4>
-                    <p className="text-xs text-ink-soft/50 mt-1">{look.item_count} article{look.item_count > 1 ? "s" : ""}</p>
-                    <div className="flex items-center justify-between mt-4">
-                      <Price xaf={look.prix_pack} className="font-bold text-ink" />
-                      <span className="text-xs uppercase tracking-wide text-ink-soft/60 group-hover:text-ink transition-colors">
-                        Voir la composition →
-                      </span>
+              {otherLooks.map((look, index) => (
+                <ScrollReveal key={look._id} delay={(index % 3) * 0.08}>
+                  <Link
+                    href={`/boutique/looks/${look._id}`}
+                    className="group block bg-white rounded-lg overflow-hidden shadow hover:shadow-xl transition-shadow">
+                    <PhotoStage src={look.photo_couverture} alt={look.nom} aspect="aspect-[4/5]" rounded="" />
+                    <div className="p-5">
+                      <h4 className="font-serif text-lg text-ink">{look.nom}</h4>
+                      <p className="text-xs text-ink-soft/50 mt-1">{look.item_count} article{look.item_count > 1 ? "s" : ""}</p>
+                      <div className="flex items-center justify-between mt-4">
+                        <Price xaf={look.prix_pack} className="font-bold text-ink" />
+                        <span className="text-xs uppercase tracking-wide text-ink-soft/60 group-hover:text-ink transition-colors">
+                          Voir la composition →
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                </ScrollReveal>
               ))}
             </div>
           </div>
         )}
+
+        <StorytellingSection />
 
         {/* Réassurance */}
         <div className="border-y border-ink/10">
@@ -157,9 +142,9 @@ export default async function BoutiqueHomePage() {
                   Meilleures ventes
                 </h3>
                 <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {meilleuresVentes.map((product) => (
+                  {meilleuresVentes.map((product, index) => (
+                    <ScrollReveal key={product._id} delay={(index % 3) * 0.08}>
                     <div
-                      key={product._id}
                       className="bg-white rounded-lg shadow hover:shadow-xl transition-shadow overflow-hidden group">
                       <Link href={`/boutique/produit/${product._id}`} className="block relative">
                         {product.image ? (
@@ -191,6 +176,7 @@ export default async function BoutiqueHomePage() {
                         </a>
                       </div>
                     </div>
+                    </ScrollReveal>
                   ))}
                 </div>
               </div>
@@ -201,8 +187,8 @@ export default async function BoutiqueHomePage() {
                 <h3 className="font-serif text-xl text-ink mb-6">Nouveautés</h3>
                 <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
                   {nouveautes.map((product, index) => (
+                    <ScrollReveal key={product._id} delay={(index % 3) * 0.08}>
                     <div
-                      key={product._id}
                       className="bg-white rounded-lg shadow hover:shadow-xl transition-shadow overflow-hidden group">
                       <Link href={`/boutique/produit/${product._id}`} className="block relative">
                         {index < 3 && (
@@ -239,6 +225,7 @@ export default async function BoutiqueHomePage() {
                         </a>
                       </div>
                     </div>
+                    </ScrollReveal>
                   ))}
                 </div>
               </div>
